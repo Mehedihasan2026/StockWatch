@@ -7,6 +7,7 @@ import mehedi.stockwatch.dto.StockResponse;
 import mehedi.stockwatch.entity.Stock;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class StockService {
@@ -59,5 +60,17 @@ public class StockService {
                 stock.getCreatedAt(),
                 stock.getUpdatedAt()
         );
+    }
+    public List<StockResponse> getAllStocks() {
+        return stockRepository.findAll()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+    public StockResponse getStockById(Long id) {
+        Stock stock = stockRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Stock not found: " + id));
+
+        return toResponse(stock);
     }
 }
