@@ -19,9 +19,18 @@ repositories {
 }
 
 dependencies {
-	implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
+    implementation ("org.flywaydb:flyway-mysql")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+
+    runtimeOnly("com.mysql:mysql-connector-j")
+
 	compileOnly("org.projectlombok:lombok")
+
 	annotationProcessor("org.projectlombok:lombok")
+
 	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
 	testCompileOnly("org.projectlombok:lombok")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
