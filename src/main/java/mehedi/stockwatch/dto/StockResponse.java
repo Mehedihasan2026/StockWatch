@@ -1,5 +1,7 @@
 package mehedi.stockwatch.dto;
 
+import mehedi.stockwatch.entity.Currency;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -9,7 +11,7 @@ public record StockResponse(
         String companyName,
         Integer shares,
         BigDecimal buyPrice,
-        String currency,
+        Currency currency,
         BigDecimal targetPrice,
         String notes,
         Boolean alertEnabled,

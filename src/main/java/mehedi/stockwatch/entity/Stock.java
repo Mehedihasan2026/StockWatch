@@ -1,5 +1,5 @@
 package mehedi.stockwatch.entity;
-
+import mehedi.stockwatch.entity.Currency;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -37,8 +37,9 @@ public class Stock {
     @Column(name = "buy_price", nullable = false, precision = 12, scale = 4)
     private BigDecimal buyPrice;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 3)
-    private String currency;
+    private Currency currency;
 
     @Column(name = "target_price", nullable = false, precision = 12, scale = 4)
     private BigDecimal targetPrice;

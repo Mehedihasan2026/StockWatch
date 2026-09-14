@@ -1,11 +1,11 @@
 package mehedi.stockwatch.service;
-
+import mehedi.stockwatch.exception.StockAlreadyExistsException;
 import mehedi.stockwatch.repository.StockRepository;
 import org.springframework.stereotype.Service;
 import mehedi.stockwatch.dto.CreateStockRequest;
 import mehedi.stockwatch.dto.StockResponse;
 import mehedi.stockwatch.entity.Stock;
-
+import mehedi.stockwatch.dto.UpdateStockRequest;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -41,6 +41,11 @@ public class StockService {
         stock.setCreatedAt(now);
         stock.setUpdatedAt(now);
 
+        if (stockRepository.existsByTicker(request.ticker())) {
+            throw new StockAlreadyExistsException(
+                    "A stock with ticker " + request.ticker() + " already exists."
+            );
+        }
         Stock savedStock = stockRepository.save(stock);
 
         return toResponse(savedStock);
@@ -72,5 +77,31 @@ public class StockService {
                 .orElseThrow(() -> new RuntimeException("Stock not found: " + id));
 
         return toResponse(stock);
+    }
+    public StockResponse updateStock(Long id, UpdateStockRequest request) {
+        Stock stock = stockRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Stock not found: " + id)
+                );
+
+        stock.setTicker(request.ticker());
+        stock.setCompanyName(request.companyName());
+        stock.setShares(request.shares());
+        stock.setBuyPrice(request.buyPrice());
+        stock.setCurrency(request.currency());
+        stock.setTargetPrice(request.targetPrice());
+        stock.setNotes(request.notes());
+
+        stock.setAlertEnabled(
+                request.alertEnabled() != null
+                        ? request.alertEnabled()
+                        : stock.getAlertEnabled()
+        );
+
+        stock.setUpdatedAt(LocalDateTime.now());
+
+        Stock updatedStock = stockRepository.save(stock);
+
+        return toResponse(updatedStock);
     }
 }

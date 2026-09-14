@@ -9,7 +9,7 @@ import mehedi.stockwatch.entity.Currency;
 
 import java.math.BigDecimal;
 
-public record CreateStockRequest(
+public record UpdateStockRequest(
 
         @NotBlank(message = "Ticker is required")
         @Size(max = 20, message = "Ticker must not exceed 20 characters")
@@ -38,5 +38,4 @@ public record CreateStockRequest(
         String notes,
 
         Boolean alertEnabled
-) {
-}
+) {}
