@@ -20,4 +20,15 @@ public class GlobalExceptionHandler {
                 "message", exception.getMessage()
         );
     }
+
+    @ExceptionHandler(StockNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handleStockNotFound(
+            StockNotFoundException exception) {
+
+        return Map.of(
+                "error", "Stock not found",
+                "message", exception.getMessage()
+        );
+    }
 }

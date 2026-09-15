@@ -1,5 +1,6 @@
 package mehedi.stockwatch.service;
 import mehedi.stockwatch.exception.StockAlreadyExistsException;
+import mehedi.stockwatch.exception.StockNotFoundException;
 import mehedi.stockwatch.repository.StockRepository;
 import org.springframework.stereotype.Service;
 import mehedi.stockwatch.dto.CreateStockRequest;
@@ -74,14 +75,16 @@ public class StockService {
     }
     public StockResponse getStockById(Long id) {
         Stock stock = stockRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Stock not found: " + id));
+                .orElseThrow(() ->
+                        new StockNotFoundException("Stock not found: " + id)
+                );
 
         return toResponse(stock);
     }
     public StockResponse updateStock(Long id, UpdateStockRequest request) {
         Stock stock = stockRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException("Stock not found: " + id)
+                        new StockNotFoundException("Stock not found: " + id)
                 );
 
         stock.setTicker(request.ticker());
@@ -103,5 +106,13 @@ public class StockService {
         Stock updatedStock = stockRepository.save(stock);
 
         return toResponse(updatedStock);
+    }
+    public void deleteStock(Long id) {
+        Stock stock = stockRepository.findById(id)
+                .orElseThrow(() ->
+                        new StockNotFoundException("Stock not found: " + id)
+                );
+
+        stockRepository.delete(stock);
     }
 }
