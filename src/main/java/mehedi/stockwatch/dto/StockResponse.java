@@ -16,6 +16,7 @@ public record StockResponse(
         String notes,
         Boolean alertEnabled,
         Boolean alertTriggered,
+        BigDecimal lastAlertPrice,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

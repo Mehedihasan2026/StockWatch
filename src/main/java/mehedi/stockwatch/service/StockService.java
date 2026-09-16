@@ -8,15 +8,22 @@ import mehedi.stockwatch.dto.StockResponse;
 import mehedi.stockwatch.entity.Stock;
 import mehedi.stockwatch.dto.UpdateStockRequest;
 import java.time.LocalDateTime;
+import mehedi.stockwatch.market.MarketDataService;
+import mehedi.stockwatch.dto.CurrentPriceResponse;
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
 public class StockService {
 
     private final StockRepository stockRepository;
+    private final MarketDataService marketDataService;
+    public StockService(
+            StockRepository stockRepository,
+            MarketDataService marketDataService) {
 
-    public StockService(StockRepository stockRepository) {
         this.stockRepository = stockRepository;
+        this.marketDataService = marketDataService;
     }
     public StockResponse createStock(CreateStockRequest request) {
 
@@ -63,6 +70,7 @@ public class StockService {
                 stock.getNotes(),
                 stock.getAlertEnabled(),
                 stock.getAlertTriggered(),
+                stock.getLastAlertPrice(),
                 stock.getCreatedAt(),
                 stock.getUpdatedAt()
         );
@@ -114,5 +122,50 @@ public class StockService {
                 );
 
         stockRepository.delete(stock);
+    }
+    public CurrentPriceResponse getCurrentPrice(Long id) {
+
+        StockResponse stock = getStockById(id);
+
+        BigDecimal currentPrice =
+                marketDataService.getCurrentPrice(stock.ticker());
+
+        return new CurrentPriceResponse(
+                stock.ticker(),
+                currentPrice,
+                stock.currency()
+        );
+    }
+    public List<StockResponse> getStocksForMonitoring() {
+
+        return stockRepository.findByAlertEnabledTrue()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+    public boolean shouldTriggerAlert(
+            StockResponse stock,
+            BigDecimal currentPrice) {
+
+        // Price must be at or above the target
+        if (currentPrice.compareTo(stock.targetPrice()) < 0) {
+            return false;
+        }
+
+        // First time reaching the target
+        if (stock.lastAlertPrice() == null) {
+            return true;
+        }
+
+        // 1% of the target price
+        BigDecimal threshold =
+                stock.targetPrice()
+                        .multiply(BigDecimal.valueOf(0.01));
+
+        // Calculate absolute movement since the last alert
+        BigDecimal priceMovement =
+                currentPrice.subtract(stock.lastAlertPrice()).abs();
+
+        return priceMovement.compareTo(threshold) >= 0;
     }
 }

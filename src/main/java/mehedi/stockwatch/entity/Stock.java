@@ -58,4 +58,6 @@ public class Stock {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+    @Column(name = "last_alert_price", precision = 12, scale = 4)
+    private BigDecimal lastAlertPrice;
 }
