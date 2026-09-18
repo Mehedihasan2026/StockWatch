@@ -1,12 +1,12 @@
 package mehedi.stockwatch.scheduler;
 
 import mehedi.stockwatch.dto.StockResponse;
+import mehedi.stockwatch.market.MarketDataService;
 import mehedi.stockwatch.service.StockService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import mehedi.stockwatch.market.MarketDataService;
-import java.math.BigDecimal;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Component
@@ -37,10 +37,20 @@ public class StockPriceScheduler {
             System.out.println(
                     stock.ticker() + " current price: " + currentPrice
             );
-            if (currentPrice.compareTo(stock.targetPrice()) >= 0) {
 
+            boolean alertTriggered =
+                    stockService.checkAndUpdateAlert(
+                            stock.id(),
+                            currentPrice
+                    );
+
+            if (alertTriggered) {
                 System.out.println(
-                        stock.ticker() + " has reached its target price!"
+                        stock.ticker()
+                                + " ALERT! Current price: "
+                                + currentPrice
+                                + ", target: "
+                                + stock.targetPrice()
                 );
             }
         }
