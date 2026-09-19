@@ -7,6 +7,7 @@ import mehedi.stockwatch.market.MarketDataService;
 import mehedi.stockwatch.service.StockService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import mehedi.stockwatch.notification.NotificationService;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -18,17 +19,21 @@ class StockPriceSchedulerTest {
     private StockService stockService;
     private MarketDataService marketDataService;
     private StockPriceScheduler scheduler;
+    private NotificationService notificationService;
 
     @BeforeEach
     void setUp() {
 
         stockService = mock(StockService.class);
         marketDataService = mock(MarketDataService.class);
+        notificationService = mock(NotificationService.class);
 
         scheduler = new StockPriceScheduler(
                 stockService,
-                marketDataService
+                marketDataService,
+                notificationService
         );
+
     }
 
     @Test
@@ -75,4 +80,49 @@ class StockPriceSchedulerTest {
                 null
         );
     }
+    @Test
+    void shouldSendNotification_whenAlertIsTriggered() {
+
+        StockResponse mu = createStock(1L, "MU");
+
+        when(stockService.getStocksForMonitoring())
+                .thenReturn(List.of(mu));
+
+        when(marketDataService.getCurrentPrice("MU"))
+                .thenReturn(new BigDecimal("120.00"));
+
+        when(stockService.checkAndUpdateAlert(
+                1L,
+                new BigDecimal("120.00")
+        )).thenReturn(true);
+
+        scheduler.checkStockPrices();
+
+        verify(notificationService).sendStockAlert(
+                mu,
+                new BigDecimal("120.00")
+        );
+    }
+    @Test
+    void shouldNotSendNotification_whenAlertIsNotTriggered() {
+
+        StockResponse mu = createStock(1L, "MU");
+
+        when(stockService.getStocksForMonitoring())
+                .thenReturn(List.of(mu));
+
+        when(marketDataService.getCurrentPrice("MU"))
+                .thenReturn(new BigDecimal("105.00"));
+
+        when(stockService.checkAndUpdateAlert(
+                1L,
+                new BigDecimal("105.00")
+        )).thenReturn(false);
+
+        scheduler.checkStockPrices();
+
+        verify(notificationService, never())
+                .sendStockAlert(any(), any());
+    }
+
 }
