@@ -5,9 +5,9 @@ import {
 } from "./api";
 
 
-function urlBase64ToUint8Array(
+function urlBase64ToArrayBuffer(
     base64String: string
-): Uint8Array {
+): ArrayBuffer {
 
     const padding =
         "=".repeat(
@@ -22,17 +22,27 @@ function urlBase64ToUint8Array(
     const rawData =
         window.atob(base64);
 
-    return Uint8Array.from(
-        [...rawData]
-            .map(character =>
-                character.charCodeAt(0)
-            )
-    );
+    const buffer =
+        new ArrayBuffer(rawData.length);
+
+    const bytes =
+        new Uint8Array(buffer);
+
+    for (
+        let i = 0;
+        i < rawData.length;
+        i++
+    ) {
+        bytes[i] =
+            rawData.charCodeAt(i);
+    }
+
+    return buffer;
 }
 
 
 export async function isPushEnabled():
-    Promise<boolean> {
+Promise<boolean> {
 
     if (!("serviceWorker" in navigator)) {
         return false;
@@ -55,7 +65,7 @@ export async function isPushEnabled():
 
 
 export async function enablePush():
-    Promise<void> {
+Promise<void> {
 
     if (!("serviceWorker" in navigator)) {
         throw new Error(
@@ -103,7 +113,7 @@ export async function enablePush():
                     userVisibleOnly: true,
 
                     applicationServerKey:
-                        urlBase64ToUint8Array(
+                        urlBase64ToArrayBuffer(
                             publicKey
                         )
                 });
@@ -131,7 +141,7 @@ export async function enablePush():
 
 
 export async function disablePush():
-    Promise<void> {
+Promise<void> {
 
     const registration =
         await navigator.serviceWorker

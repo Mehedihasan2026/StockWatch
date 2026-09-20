@@ -6,12 +6,26 @@ import type {
 } from "./types";
 
 
+const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL ?? "";
+
+
+function apiUrl(path: string): string {
+    return `${API_BASE_URL}${path}`;
+}
+
+
 export async function getStocks(): Promise<Stock[]> {
 
-    const response = await fetch("/api/stocks");
+    const response =
+        await fetch(
+            apiUrl("/api/stocks")
+        );
 
     if (!response.ok) {
-        throw new Error("Failed to load stocks");
+        throw new Error(
+            "Failed to load stocks"
+        );
     }
 
     return response.json();
@@ -23,15 +37,19 @@ export async function getCurrentPrice(
 ): Promise<CurrentPriceResponse> {
 
     const response =
-        await fetch(`/api/stocks/${id}/price`);
+        await fetch(
+            apiUrl(
+                `/api/stocks/${id}/price`
+)
+);
 
-    if (!response.ok) {
-        throw new Error(
-            `Failed to load price for stock ${id}`
-        );
-    }
+if (!response.ok) {
+    throw new Error(
+        `Failed to load price for stock ${id}`
+    );
+}
 
-    return response.json();
+return response.json();
 }
 
 
@@ -40,15 +58,20 @@ export async function createStock(
 ): Promise<Stock> {
 
     const response =
-        await fetch("/api/stocks", {
-            method: "POST",
+        await fetch(
+            apiUrl("/api/stocks"),
+            {
+                method: "POST",
 
-            headers: {
-                "Content-Type": "application/json"
-            },
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
 
-            body: JSON.stringify(stock)
-        });
+                body:
+                    JSON.stringify(stock)
+            }
+        );
 
     if (!response.ok) {
 
@@ -56,7 +79,8 @@ export async function createStock(
             await response.text();
 
         throw new Error(
-            message || "Failed to create stock"
+            message ||
+            "Failed to create stock"
         );
     }
 
@@ -70,15 +94,22 @@ export async function updateStock(
 ): Promise<Stock> {
 
     const response =
-        await fetch(`/api/stocks/${id}`, {
-            method: "PUT",
+        await fetch(
+            apiUrl(
+                `/api/stocks/${id}`
+            ),
+            {
+                method: "PUT",
 
-            headers: {
-                "Content-Type": "application/json"
-            },
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
 
-            body: JSON.stringify(stock)
-        });
+                body:
+                    JSON.stringify(stock)
+            }
+        );
 
     if (!response.ok) {
 
@@ -86,7 +117,8 @@ export async function updateStock(
             await response.text();
 
         throw new Error(
-            message || "Failed to update stock"
+            message ||
+            "Failed to update stock"
         );
     }
 
@@ -99,9 +131,14 @@ export async function deleteStock(
 ): Promise<void> {
 
     const response =
-        await fetch(`/api/stocks/${id}`, {
-            method: "DELETE"
-        });
+        await fetch(
+            apiUrl(
+                `/api/stocks/${id}`
+            ),
+            {
+                method: "DELETE"
+            }
+        );
 
     if (!response.ok) {
         throw new Error(
@@ -115,7 +152,11 @@ export async function getVapidPublicKey():
     Promise<string> {
 
     const response =
-        await fetch("/api/push/public-key");
+        await fetch(
+            apiUrl(
+                "/api/push/public-key"
+            )
+        );
 
     if (!response.ok) {
         throw new Error(
@@ -136,7 +177,9 @@ export async function savePushSubscription(
 
     const response =
         await fetch(
-            "/api/push-subscriptions",
+            apiUrl(
+                "/api/push-subscriptions"
+            ),
             {
                 method: "POST",
 
@@ -146,7 +189,9 @@ export async function savePushSubscription(
                 },
 
                 body:
-                    JSON.stringify(subscription)
+                    JSON.stringify(
+                        subscription
+                    )
             }
         );
 
@@ -164,8 +209,10 @@ export async function removePushSubscription(
 
     const response =
         await fetch(
-            "/api/push-subscriptions?endpoint="
-            + encodeURIComponent(endpoint),
+            apiUrl(
+                "/api/push-subscriptions?endpoint="
+                + encodeURIComponent(endpoint)
+            ),
             {
                 method: "DELETE"
             }
