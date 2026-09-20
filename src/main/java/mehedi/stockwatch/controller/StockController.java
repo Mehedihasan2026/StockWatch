@@ -1,26 +1,22 @@
 package mehedi.stockwatch.controller;
 
+import mehedi.stockwatch.dto.CurrentPriceResponse;
 import mehedi.stockwatch.dto.UpdateStockRequest;
 import mehedi.stockwatch.dto.CreateStockRequest;
 import mehedi.stockwatch.dto.StockResponse;
-import mehedi.stockwatch.market.MarketDataService;
 import mehedi.stockwatch.service.StockService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import java.util.List;
-import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/api/stocks")
 public class StockController {
 
     private final StockService stockService;
-    private final MarketDataService marketDataService;
-    public StockController(StockService stockService,
-    MarketDataService marketDataService ) {
+    public StockController(StockService stockService) {
         this.stockService = stockService;
-        this.marketDataService = marketDataService;
     }
 
     @PostMapping
@@ -51,10 +47,7 @@ public class StockController {
         stockService.deleteStock(id);
     }
     @GetMapping("/{id}/price")
-    public BigDecimal getCurrentPrice(@PathVariable Long id) {
-
-        StockResponse stock = stockService.getStockById(id);
-
-        return marketDataService.getCurrentPrice(stock.ticker());
+    public CurrentPriceResponse getCurrentPrice(@PathVariable Long id) {
+        return stockService.getCurrentPrice(id);
     }
 }
