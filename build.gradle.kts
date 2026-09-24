@@ -25,6 +25,8 @@ dependencies {
     implementation ("org.flywaydb:flyway-mysql")
     implementation("org.springframework.boot:spring-boot-starter-validation")
 
+    implementation("org.springframework.boot:spring-boot-starter-security")
+
     implementation("com.fasterxml.jackson.core:jackson-databind")
 
     implementation("com.interaso:webpush:1.3.0")
