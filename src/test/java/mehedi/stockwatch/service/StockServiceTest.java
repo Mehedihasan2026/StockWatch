@@ -7,6 +7,7 @@ import mehedi.stockwatch.market.MarketDataService;
 import mehedi.stockwatch.repository.StockRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import mehedi.stockwatch.repository.UserRepository;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -17,18 +18,29 @@ import static org.mockito.Mockito.when;
 
 class StockServiceTest {
 
+
     private StockService stockService;
     private StockRepository stockRepository;
+    private UserRepository userRepository;
 
     @BeforeEach
     void setUp() {
-        stockRepository = mock(StockRepository.class);
-        MarketDataService marketDataService = mock(MarketDataService.class);
 
-        stockService = new StockService(
-                stockRepository,
-                marketDataService
-        );
+        stockRepository =
+                mock(StockRepository.class);
+
+        MarketDataService marketDataService =
+                mock(MarketDataService.class);
+
+        userRepository =
+                mock(UserRepository.class);
+
+        stockService =
+                new StockService(
+                        stockRepository,
+                        marketDataService,
+                        userRepository
+                );
     }
 
     @Test
