@@ -507,3 +507,369 @@ button:disabled {
             1fr 1fr;
     }
 }
+/* =========================
+   AUTH / PUBLIC SITE
+   ========================= */
+
+.auth-loading {
+    min-height: 100vh;
+
+    display: grid;
+    place-items: center;
+
+    color: #8b949e;
+}
+
+
+.public-page {
+    max-width: 1200px;
+
+    margin: 0 auto;
+
+    padding:
+            30px 24px
+            80px;
+}
+
+
+.public-nav {
+    display: flex;
+
+    justify-content:
+            space-between;
+
+    align-items: center;
+
+    margin-bottom: 100px;
+}
+
+
+.brand,
+.auth-brand {
+    color: #f0f6fc;
+
+    font-size: 1.4rem;
+
+    font-weight: 700;
+
+    text-decoration: none;
+}
+
+
+.public-nav > div {
+    display: flex;
+
+    gap: 12px;
+
+    align-items: center;
+}
+
+
+.nav-link {
+    color: #c9d1d9;
+
+    text-decoration: none;
+
+    padding: 10px 14px;
+}
+
+
+.primary-link,
+.hero-primary {
+    display: inline-block;
+
+    background: #238636;
+
+    color: white;
+
+    text-decoration: none;
+
+    padding: 11px 18px;
+
+    border-radius: 8px;
+}
+
+
+.hero {
+    max-width: 780px;
+
+    padding-bottom: 100px;
+}
+
+
+.eyebrow {
+    color: #3fb950;
+
+    font-size: 0.8rem;
+
+    font-weight: 700;
+
+    letter-spacing: 0.12em;
+}
+
+
+.hero h1 {
+    margin:
+            12px 0
+            20px;
+
+    font-size:
+            clamp(
+                    2.7rem,
+                    7vw,
+                    5.5rem
+            );
+
+    line-height: 1;
+}
+
+
+.hero-copy {
+    max-width: 650px;
+
+    color: #8b949e;
+
+    font-size: 1.15rem;
+
+    line-height: 1.7;
+}
+
+
+.hero-actions {
+    display: flex;
+
+    gap: 12px;
+
+    margin-top: 30px;
+}
+
+
+.hero-secondary {
+    display: inline-block;
+
+    padding: 11px 18px;
+
+    border:
+            1px solid #30363d;
+
+    border-radius: 8px;
+
+    color: #f0f6fc;
+
+    text-decoration: none;
+
+    background: #161b22;
+}
+
+
+.market-preview {
+    border-top:
+            1px solid #30363d;
+
+    padding-top: 40px;
+}
+
+
+.market-preview h2 {
+    margin-top: 6px;
+}
+
+
+.market-placeholder {
+    margin-top: 30px;
+
+    padding: 30px;
+
+    border:
+            1px dashed #30363d;
+
+    border-radius: 12px;
+
+    color: #8b949e;
+
+    text-align: center;
+}
+
+
+/* AUTH */
+
+.auth-page {
+    min-height: 100vh;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    padding: 40px 20px;
+}
+
+
+.auth-brand {
+    margin-bottom: 50px;
+}
+
+
+.auth-card {
+    width: 100%;
+
+    max-width: 430px;
+
+    background: #161b22;
+
+    border:
+            1px solid #30363d;
+
+    border-radius: 16px;
+
+    padding: 30px;
+}
+
+
+.auth-card h1 {
+    margin: 0;
+}
+
+
+.auth-card > p {
+    color: #8b949e;
+
+    margin-bottom: 26px;
+}
+
+
+.auth-form {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 18px;
+}
+
+
+.auth-form label {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 7px;
+
+    color: #c9d1d9;
+}
+
+
+.auth-form input {
+    padding: 12px;
+
+    border:
+            1px solid #30363d;
+
+    border-radius: 8px;
+
+    background: #0d1117;
+
+    color: #f0f6fc;
+
+    outline: none;
+}
+
+
+.auth-form input:focus {
+    border-color: #58a6ff;
+}
+
+
+.auth-submit {
+    border: 0;
+
+    border-radius: 8px;
+
+    padding: 12px;
+
+    background: #238636;
+
+    color: white;
+}
+
+
+.password-help {
+    color: #8b949e;
+}
+
+
+.auth-switch {
+    text-align: center;
+
+    color: #8b949e;
+}
+
+
+.auth-switch a {
+    color: #58a6ff;
+}
+
+
+/* LOGGED-IN BAR */
+
+.session-bar {
+    max-width: 1200px;
+
+    margin: 0 auto;
+
+    padding:
+            14px 24px 0;
+
+    display: flex;
+
+    justify-content:
+            flex-end;
+
+    align-items: center;
+
+    gap: 14px;
+
+    color: #8b949e;
+
+    font-size: 0.9rem;
+}
+
+
+.session-bar button {
+    padding: 7px 12px;
+
+    border:
+            1px solid #30363d;
+
+    border-radius: 7px;
+
+    background: #21262d;
+
+    color: #f0f6fc;
+}
+
+
+@media (max-width: 600px) {
+
+    .public-nav {
+        margin-bottom: 60px;
+    }
+
+    .hero {
+        padding-bottom: 70px;
+    }
+
+    .hero-actions {
+        flex-direction: column;
+    }
+
+    .hero-primary,
+    .hero-secondary {
+        text-align: center;
+    }
+
+    .session-bar {
+        justify-content:
+                space-between;
+    }
+}
