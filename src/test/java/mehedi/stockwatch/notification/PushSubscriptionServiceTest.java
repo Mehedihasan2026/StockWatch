@@ -1,127 +1,272 @@
 package mehedi.stockwatch.notification;
 
+import mehedi.stockwatch.entity.User;
+import mehedi.stockwatch.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class PushSubscriptionServiceTest {
 
+    private static final String EMAIL =
+            "hasan@example.com";
+
+    private static final Long USER_ID =
+            42L;
+
     private PushSubscriptionRepository repository;
+
+    private UserRepository userRepository;
+
     private PushSubscriptionService service;
+
+    private User user;
+
 
     @BeforeEach
     void setUp() {
-        repository = mock(PushSubscriptionRepository.class);
-        service = new PushSubscriptionService(repository);
+
+        repository =
+                mock(
+                        PushSubscriptionRepository.class
+                );
+
+        userRepository =
+                mock(
+                        UserRepository.class
+                );
+
+        service =
+                new PushSubscriptionService(
+                        repository,
+                        userRepository
+                );
+
+
+        user =
+                new User();
+
+        user.setId(USER_ID);
+        user.setEmail(EMAIL);
+        user.setDisplayName("Hasan");
+        user.setEnabled(true);
+
+
+        when(
+                userRepository
+                        .findByEmailIgnoreCase(
+                                EMAIL
+                        )
+        ).thenReturn(
+                Optional.of(user)
+        );
     }
 
+
     @Test
-    void shouldCreateNewSubscription_whenEndpointDoesNotExist() {
+    void shouldCreateNewSubscriptionForUser() {
 
         PushSubscriptionRequest request =
                 new PushSubscriptionRequest(
-                        "https://push.example/test",
-                        "public-key",
-                        "auth-key"
+                        "https://push.example.com/123",
+                        "test-p256dh",
+                        "test-auth"
                 );
 
-        when(repository.findByEndpoint(request.endpoint()))
-                .thenReturn(Optional.empty());
 
-        service.saveSubscription(request);
+        when(
+                repository.findByEndpoint(
+                        request.endpoint()
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
 
-        verify(repository).save(argThat(subscription ->
-                subscription.getId() == null
-                        && subscription.getEndpoint()
-                        .equals("https://push.example/test")
-                        && subscription.getP256dh()
-                        .equals("public-key")
-                        && subscription.getAuth()
-                        .equals("auth-key")
-                        && subscription.getCreatedAt() != null
-                        && subscription.getUpdatedAt() != null
-        ));
+
+        service.saveSubscription(
+                request,
+                EMAIL
+        );
+
+
+        ArgumentCaptor<PushSubscription> captor =
+                ArgumentCaptor.forClass(
+                        PushSubscription.class
+                );
+
+
+        verify(repository)
+                .save(
+                        captor.capture()
+                );
+
+
+        PushSubscription saved =
+                captor.getValue();
+
+
+        assertEquals(
+                request.endpoint(),
+                saved.getEndpoint()
+        );
+
+        assertEquals(
+                request.p256dh(),
+                saved.getP256dh()
+        );
+
+        assertEquals(
+                request.auth(),
+                saved.getAuth()
+        );
+
+        assertSame(
+                user,
+                saved.getUser()
+        );
+
+        assertNotNull(
+                saved.getCreatedAt()
+        );
+
+        assertNotNull(
+                saved.getUpdatedAt()
+        );
     }
 
+
     @Test
-    void shouldUpdateExistingSubscription_whenEndpointAlreadyExists() {
+    void shouldUpdateExistingSubscriptionAndAssignCurrentUser() {
+
+        String endpoint =
+                "https://push.example.com/123";
+
 
         PushSubscription existing =
                 new PushSubscription();
 
-        existing.setId(1L);
-        existing.setEndpoint(
-                "https://push.example/test"
-        );
-        existing.setP256dh("old-public-key");
-        existing.setAuth("old-auth-key");
+        existing.setId(10L);
+        existing.setEndpoint(endpoint);
+
 
         PushSubscriptionRequest request =
                 new PushSubscriptionRequest(
-                        "https://push.example/test",
-                        "new-public-key",
-                        "new-auth-key"
+                        endpoint,
+                        "new-p256dh",
+                        "new-auth"
                 );
 
-        when(repository.findByEndpoint(request.endpoint()))
-                .thenReturn(Optional.of(existing));
 
-        service.saveSubscription(request);
+        when(
+                repository.findByEndpoint(
+                        endpoint
+                )
+        ).thenReturn(
+                Optional.of(existing)
+        );
+
+
+        service.saveSubscription(
+                request,
+                EMAIL
+        );
+
+
+        assertSame(
+                user,
+                existing.getUser()
+        );
 
         assertEquals(
-                "new-public-key",
+                "new-p256dh",
                 existing.getP256dh()
         );
 
         assertEquals(
-                "new-auth-key",
+                "new-auth",
                 existing.getAuth()
         );
 
-        verify(repository).save(existing);
+        assertNotNull(
+                existing.getUpdatedAt()
+        );
+
+
+        verify(repository)
+                .save(existing);
     }
+
+
     @Test
-    void shouldDeleteSubscription_whenEndpointExists() {
+    void shouldDeleteOnlySubscriptionOwnedByUser() {
 
-        PushSubscription subscription =
-                new PushSubscription();
+        String endpoint =
+                "https://push.example.com/123";
 
-        subscription.setId(1L);
-        subscription.setEndpoint(
-                "https://push.example/device123"
-        );
-
-        when(repository.findByEndpoint(
-                "https://push.example/device123"
-        )).thenReturn(
-                Optional.of(subscription)
-        );
 
         service.deleteSubscription(
-                "https://push.example/device123"
+                endpoint,
+                EMAIL
         );
 
-        verify(repository).delete(subscription);
+
+        verify(repository)
+                .deleteByEndpointAndUser_Id(
+                        endpoint,
+                        USER_ID
+                );
     }
 
-    @Test
-    void shouldDoNothing_whenDeletingUnknownEndpoint() {
 
-        when(repository.findByEndpoint(
-                "https://push.example/unknown"
-        )).thenReturn(
+    @Test
+    void shouldFailWhenAuthenticatedUserDoesNotExist() {
+
+        when(
+                userRepository
+                        .findByEmailIgnoreCase(
+                                "missing@example.com"
+                        )
+        ).thenReturn(
                 Optional.empty()
         );
 
-        service.deleteSubscription(
-                "https://push.example/unknown"
+
+        PushSubscriptionRequest request =
+                new PushSubscriptionRequest(
+                        "https://push.example.com/123",
+                        "p256dh",
+                        "auth"
+                );
+
+
+        ResponseStatusException exception =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () ->
+                                service.saveSubscription(
+                                        request,
+                                        "missing@example.com"
+                                )
+                );
+
+
+        assertEquals(
+                401,
+                exception
+                        .getStatusCode()
+                        .value()
         );
 
-        verify(repository, never())
-                .delete(any());
+
+        verify(
+                repository,
+                never()
+        ).save(any());
     }
 }

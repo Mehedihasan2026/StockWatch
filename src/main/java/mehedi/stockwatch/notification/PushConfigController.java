@@ -5,6 +5,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/push")
 public class PushConfigController {
@@ -12,15 +14,16 @@ public class PushConfigController {
     private final VapidProperties vapidProperties;
 
     public PushConfigController(
-            VapidProperties vapidProperties) {
-
+            VapidProperties vapidProperties
+    ) {
         this.vapidProperties = vapidProperties;
     }
 
     @GetMapping("/public-key")
-    public VapidPublicKeyResponse getPublicKey() {
+    public Map<String, String> getPublicKey() {
 
-        return new VapidPublicKeyResponse(
+        return Map.of(
+                "publicKey",
                 vapidProperties.getVapidPublicKey()
         );
     }

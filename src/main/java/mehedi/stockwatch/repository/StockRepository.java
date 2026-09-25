@@ -2,6 +2,8 @@ package mehedi.stockwatch.repository;
 
 import mehedi.stockwatch.entity.Stock;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,9 +31,15 @@ public interface StockRepository
             Long userId
     );
 
-    /*
-     * Used by the background scheduler.
-     * The scheduler monitors enabled stocks for all users.
-     */
     List<Stock> findByAlertEnabledTrue();
+
+    @Query("""
+            select s.user.id
+            from Stock s
+            where s.id = :stockId
+            """)
+    Optional<Long> findOwnerUserIdByStockId(
+            @Param("stockId")
+            Long stockId
+    );
 }

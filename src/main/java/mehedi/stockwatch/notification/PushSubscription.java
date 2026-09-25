@@ -1,6 +1,7 @@
 package mehedi.stockwatch.notification;
 
 import jakarta.persistence.*;
+import mehedi.stockwatch.entity.User;
 
 import java.time.LocalDateTime;
 
@@ -20,6 +21,10 @@ public class PushSubscription {
 
     @Column(nullable = false, length = 255)
     private String auth;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -57,6 +62,14 @@ public class PushSubscription {
 
     public void setAuth(String auth) {
         this.auth = auth;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 
     public LocalDateTime getCreatedAt() {

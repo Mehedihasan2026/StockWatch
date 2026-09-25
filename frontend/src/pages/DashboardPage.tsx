@@ -650,7 +650,6 @@ export default function DashboardPage() {
             return;
         }
 
-
         try {
 
             const registration =
@@ -658,21 +657,53 @@ export default function DashboardPage() {
                     .serviceWorker
                     .getRegistration();
 
-
             if (!registration) {
                 return;
             }
-
 
             const subscription =
                 await registration
                     .pushManager
                     .getSubscription();
 
+            if (!subscription) {
 
-            setNotificationEnabled(
-                subscription !== null
-            );
+                setNotificationEnabled(
+                    false
+                );
+
+                return;
+            }
+
+            const json =
+                subscription.toJSON();
+
+            if (
+                json.endpoint
+                &&
+                json.keys?.p256dh
+                &&
+                json.keys?.auth
+            ) {
+
+                /*
+                 * Re-sync this browser subscription
+                 * with the currently logged-in user.
+                 */
+                await savePushSubscription({
+
+                    endpoint:
+                    json.endpoint,
+
+                    p256dh:
+                    json.keys.p256dh,
+
+                    auth:
+                    json.keys.auth
+                });
+            }
+
+            setNotificationEnabled(true);
 
         } catch (pushError) {
 
