@@ -6,7 +6,8 @@ import type {
     RegisterInput,
     Stock,
     MarketMover,
-    StockInput
+    StockInput,
+    StockSearchResult
 } from "./types";
 
 const API_BASE_URL =
@@ -191,6 +192,29 @@ export async function getTopGainers(
             "Could not load today's market movers."
         );
     }
+
+    return response.json();
+}
+export async function searchStocks(
+    query: string,
+    limit = 6
+): Promise<StockSearchResult[]> {
+
+    const response =
+        await apiFetch(
+            `/api/market/search?q=${
+                encodeURIComponent(query)
+            }&limit=${limit}`
+        );
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            "Could not search stocks."
+        );
+    }
+
 
     return response.json();
 }

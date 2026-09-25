@@ -67,3 +67,9 @@ export interface MarketMover {
     currency: string | null;
     exchange: string | null;
 }
+export interface StockSearchResult {
+    ticker: string;
+    companyName: string;
+    exchange: string;
+    quoteType: string;
+}

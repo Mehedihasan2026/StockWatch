@@ -13,13 +13,15 @@ import {
     getVapidPublicKey,
     removePushSubscription,
     savePushSubscription,
+    searchStocks,
     updateStock
 } from "../api";
 
 import type {
     DashboardStock,
     Stock,
-    StockInput
+    StockInput,
+    StockSearchResult
 } from "../types";
 
 import "../App.css";
@@ -74,6 +76,20 @@ export default function DashboardPage() {
 
     const [saving, setSaving] =
         useState(false);
+    const [
+        tickerResults,
+        setTickerResults
+    ] = useState<StockSearchResult[]>([]);
+
+    const [
+        tickerSearching,
+        setTickerSearching
+    ] = useState(false);
+
+    const [
+        tickerSearchOpen,
+        setTickerSearchOpen
+    ] = useState(false);
 
     const [
         notificationEnabled,
@@ -113,6 +129,100 @@ export default function DashboardPage() {
         };
 
     }, []);
+    useEffect(() => {
+
+        if (!formOpen) {
+
+            setTickerResults([]);
+            setTickerSearchOpen(false);
+
+            return;
+        }
+
+
+        const query =
+            form.ticker.trim();
+
+
+        if (query.length < 1) {
+
+            setTickerResults([]);
+            setTickerSearchOpen(false);
+
+            return;
+        }
+
+
+        let cancelled = false;
+
+
+        const timeout =
+            window.setTimeout(
+                async () => {
+
+                    setTickerSearching(true);
+
+                    try {
+
+                        const results =
+                            await searchStocks(
+                                query,
+                                6
+                            );
+
+
+                        if (!cancelled) {
+
+                            setTickerResults(
+                                results
+                            );
+
+                            setTickerSearchOpen(
+                                true
+                            );
+                        }
+
+                    } catch (searchError) {
+
+                        console.error(
+                            "Could not search ticker",
+                            searchError
+                        );
+
+
+                        if (!cancelled) {
+
+                            setTickerResults([]);
+                        }
+
+                    } finally {
+
+                        if (!cancelled) {
+
+                            setTickerSearching(
+                                false
+                            );
+                        }
+                    }
+
+                },
+                350
+            );
+
+
+        return () => {
+
+            cancelled = true;
+
+            window.clearTimeout(
+                timeout
+            );
+        };
+
+    }, [
+        form.ticker,
+        formOpen
+    ]);
 
 
     /* =========================
@@ -378,7 +488,27 @@ export default function DashboardPage() {
             EMPTY_FORM
         );
     }
+    function selectTicker(
+        result: StockSearchResult
+    ) {
 
+        setForm(
+            current => ({
+                ...current,
+
+                ticker:
+                result.ticker,
+
+                companyName:
+                result.companyName
+            })
+        );
+
+
+        setTickerResults([]);
+
+        setTickerSearchOpen(false);
+    }
 
     async function handleSubmit(
         event: FormEvent<HTMLFormElement>
@@ -1333,30 +1463,123 @@ export default function DashboardPage() {
 
                             <div className="form-grid">
 
-                                <label>
-                                    Ticker
+                                <div className="ticker-search-field">
 
-                                    <input
-                                        required
-                                        placeholder="MU"
-                                        value={
-                                            form.ticker
-                                        }
+                                    <label>
+                                        Ticker
 
-                                        onChange={
-                                            event =>
-                                                setForm(
-                                                    current => ({
-                                                        ...current,
-                                                        ticker:
-                                                        event
-                                                            .target
-                                                            .value
-                                                    })
-                                                )
-                                        }
-                                    />
-                                </label>
+                                        <input
+                                            required
+                                            autoComplete="off"
+                                            placeholder="Search MU or Micron"
+
+                                            value={
+                                                form.ticker
+                                            }
+
+                                            onFocus={() => {
+
+                                                if (
+                                                    tickerResults.length > 0
+                                                ) {
+
+                                                    setTickerSearchOpen(
+                                                        true
+                                                    );
+                                                }
+                                            }}
+
+                                            onChange={
+                                                event => {
+
+                                                    setForm(
+                                                        current => ({
+                                                            ...current,
+
+                                                            ticker:
+                                                                event
+                                                                    .target
+                                                                    .value
+                                                                    .toUpperCase()
+                                                        })
+                                                    );
+
+                                                    setTickerSearchOpen(
+                                                        true
+                                                    );
+                                                }
+                                            }
+                                        />
+                                    </label>
+
+
+                                    {tickerSearching && (
+
+                                        <div className="ticker-search-status">
+                                            Searching...
+                                        </div>
+                                    )}
+
+
+                                    {
+                                        tickerSearchOpen
+                                        &&
+                                        tickerResults.length > 0
+                                        &&
+                                        (
+
+                                            <div className="ticker-search-results">
+
+                                                {tickerResults.map(
+                                                    result => (
+
+                                                        <button
+                                                            key={
+                                                                `${result.ticker}-${result.exchange}`
+                                                            }
+
+                                                            type="button"
+
+                                                            className="ticker-search-result"
+
+                                                            onClick={() =>
+                                                                selectTicker(
+                                                                    result
+                                                                )
+                                                            }
+                                                        >
+
+                                                            <div>
+
+                                                                <strong>
+                                                                    {result.ticker}
+                                                                </strong>
+
+                                                                <span>
+                                    {
+                                        result
+                                            .companyName
+                                    }
+                                </span>
+
+                                                            </div>
+
+
+                                                            <small>
+                                                                {
+                                                                    result.exchange
+                                                                }
+                                                            </small>
+
+                                                        </button>
+                                                    )
+                                                )}
+
+                                            </div>
+                                        )
+                                    }
+
+                                </div>
 
 
                                 <label>
