@@ -57,3 +57,13 @@ export interface PushSubscriptionPayload {
     p256dh: string;
     auth: string;
 }
+export interface MarketMover {
+    ticker: string;
+    companyName: string;
+    price: number | null;
+    change: number | null;
+    changePercent: number | null;
+    volume: number | null;
+    currency: string | null;
+    exchange: string | null;
+}

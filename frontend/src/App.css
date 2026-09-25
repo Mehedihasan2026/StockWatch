@@ -873,3 +873,318 @@ button:disabled {
                 space-between;
     }
 }
+/* =========================
+   PUBLIC MARKET TABLE
+   ========================= */
+
+.market-section {
+    border-top: 1px solid #30363d;
+    padding-top: 48px;
+    padding-bottom: 80px;
+}
+
+
+.market-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    margin-bottom: 28px;
+}
+
+
+.market-section-header h2 {
+    margin: 6px 0;
+    font-size: 2rem;
+}
+
+
+.market-description {
+    margin: 0;
+    color: #8b949e;
+}
+
+
+.market-refresh-button {
+    border: 1px solid #30363d;
+    background: #161b22;
+    color: #f0f6fc;
+    border-radius: 8px;
+    padding: 9px 16px;
+    cursor: pointer;
+}
+
+
+.market-refresh-button:hover {
+    background: #21262d;
+}
+
+
+.market-refresh-button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+
+.market-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+
+    border: 1px solid #30363d;
+    border-radius: 12px;
+
+    background: #0d1117;
+}
+
+
+.market-table {
+    width: 100%;
+    min-width: 850px;
+
+    border-collapse: collapse;
+}
+
+
+.market-table th {
+    padding: 14px 16px;
+
+    text-align: left;
+
+    color: #8b949e;
+
+    font-size: 0.75rem;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.06em;
+
+    border-bottom: 1px solid #30363d;
+
+    background: #161b22;
+}
+
+
+.market-table td {
+    padding: 16px;
+
+    border-bottom: 1px solid #21262d;
+
+    color: #c9d1d9;
+}
+
+
+.market-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+
+.market-table tbody tr:hover {
+    background: #161b22;
+}
+
+
+.market-rank {
+    color: #8b949e !important;
+    width: 50px;
+}
+
+
+.market-company {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    min-width: 200px;
+}
+
+
+.market-company strong {
+    color: #f0f6fc;
+    font-size: 1rem;
+}
+
+
+.market-company span {
+    max-width: 260px;
+
+    color: #8b949e;
+
+    font-size: 0.82rem;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+.market-positive {
+    color: #3fb950 !important;
+    font-weight: 600;
+}
+
+
+.gain-badge {
+    display: inline-block;
+
+    padding: 5px 9px;
+
+    border: 1px solid rgba(63, 185, 80, 0.35);
+
+    border-radius: 999px;
+
+    background: rgba(63, 185, 80, 0.1);
+
+    color: #3fb950;
+
+    font-weight: 700;
+}
+
+
+.market-exchange {
+    color: #8b949e !important;
+}
+
+
+.market-disclaimer {
+    margin-top: 14px;
+
+    color: #6e7681;
+
+    font-size: 0.8rem;
+}
+
+
+.market-error {
+    margin-bottom: 20px;
+
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+
+    padding: 14px 16px;
+
+    border: 1px solid #da3633;
+    border-radius: 8px;
+
+    background: rgba(248, 81, 73, 0.08);
+
+    color: #f85149;
+}
+
+
+.market-error button {
+    border: 1px solid #30363d;
+
+    border-radius: 6px;
+
+    padding: 7px 12px;
+
+    background: #21262d;
+
+    color: #f0f6fc;
+}
+
+
+.market-empty {
+    padding: 50px;
+
+    border: 1px dashed #30363d;
+
+    border-radius: 12px;
+
+    color: #8b949e;
+
+    text-align: center;
+}
+
+
+.market-loading {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+
+.market-loading-row {
+    height: 62px;
+
+    border: 1px solid #21262d;
+
+    border-radius: 8px;
+
+    background: #161b22;
+
+    animation: market-pulse 1.3s infinite ease-in-out;
+}
+
+
+@keyframes market-pulse {
+
+    0%,
+    100% {
+        opacity: 0.45;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+
+/* =========================
+   PUBLIC CTA
+   ========================= */
+
+.public-cta {
+    margin-bottom: 80px;
+
+    padding: 40px;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 30px;
+
+    border: 1px solid #30363d;
+
+    border-radius: 16px;
+
+    background: #161b22;
+}
+
+
+.public-cta h2 {
+    margin: 6px 0 12px;
+}
+
+
+.public-cta p {
+    max-width: 650px;
+
+    margin-bottom: 0;
+
+    color: #8b949e;
+}
+
+
+@media (max-width: 700px) {
+
+    .market-section-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .market-refresh-button {
+        width: 100%;
+    }
+
+    .public-cta {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .public-cta .hero-primary {
+        text-align: center;
+    }
+}

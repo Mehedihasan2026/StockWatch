@@ -1,3 +1,4 @@
+import PublicHome from "./pages/PublicHome";
 import {
     type FormEvent,
     useEffect,
@@ -174,105 +175,6 @@ function App() {
     );
 }
 
-
-function PublicHome() {
-
-    return (
-
-        <main className="public-page">
-
-            <nav className="public-nav">
-
-                <strong className="brand">
-                    StockWatch
-                </strong>
-
-                <div>
-
-                    <Link
-                        to="/login"
-                        className="nav-link"
-                    >
-                        Log in
-                    </Link>
-
-                    <Link
-                        to="/register"
-                        className="primary-link"
-                    >
-                        Create account
-                    </Link>
-
-                </div>
-
-            </nav>
-
-
-            <section className="hero">
-
-                <p className="eyebrow">
-                    STOCK MANAGEMENT SYSTEM
-                </p>
-
-                <h1>
-                    Track your portfolio.
-                    Set your targets.
-                    Get notified.
-                </h1>
-
-                <p className="hero-copy">
-                    Monitor live stock prices,
-                    manage your personal portfolio,
-                    and receive browser alerts when
-                    your price targets are reached.
-                </p>
-
-
-                <div className="hero-actions">
-
-                    <Link
-                        to="/register"
-                        className="hero-primary"
-                    >
-                        Start tracking
-                    </Link>
-
-                    <Link
-                        to="/login"
-                        className="hero-secondary"
-                    >
-                        Log in
-                    </Link>
-
-                </div>
-
-            </section>
-
-
-            <section className="market-preview">
-
-                <div>
-
-                    <p className="eyebrow">
-                        MARKET TODAY
-                    </p>
-
-                    <h2>
-                        Top market movers
-                    </h2>
-
-                </div>
-
-                <p className="market-placeholder">
-                    Top 20 gainers will appear
-                    here in the next step.
-                </p>
-
-            </section>
-
-        </main>
-    );
-}
 
 
 interface AuthPageProps {

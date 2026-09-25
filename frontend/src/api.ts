@@ -5,9 +5,9 @@ import type {
     PushSubscriptionPayload,
     RegisterInput,
     Stock,
+    MarketMover,
     StockInput
 } from "./types";
-
 
 const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL ?? "";
@@ -175,7 +175,23 @@ export async function getCurrentUser():
 
     return response.json();
 }
+export async function getTopGainers(
+    limit = 20
+): Promise<MarketMover[]> {
 
+    const response =
+        await apiFetch(
+            `/api/market/top-gainers?limit=${limit}`
+        );
+
+    if (!response.ok) {
+        throw new Error(
+            "Could not load today's market movers."
+        );
+    }
+
+    return response.json();
+}
 
 export async function login(
     input: LoginInput
