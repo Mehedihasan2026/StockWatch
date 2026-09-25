@@ -4,5 +4,12 @@ import java.math.BigDecimal;
 
 public interface MarketDataProvider {
 
-    BigDecimal getCurrentPrice(String ticker);
+    MarketQuote getQuote(String ticker);
+
+    default BigDecimal getCurrentPrice(
+            String ticker) {
+
+        return getQuote(ticker)
+                .currentPrice();
+    }
 }

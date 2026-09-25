@@ -35,10 +35,16 @@ export interface CurrentPriceResponse {
     ticker: string;
     currentPrice: number;
     currency: string;
+    lastUpdated: string | null;
+    marketStatus: "OPEN" | "CLOSED" | "UNKNOWN";
+    exchangeTimezone: string | null;
 }
 
 export interface DashboardStock extends Stock {
     currentPrice: number | null;
+    lastUpdated: string | null;
+    marketStatus: "OPEN" | "CLOSED" | "UNKNOWN" | null;
+    exchangeTimezone: string | null;
 }
 
 export interface StockInput {
@@ -57,6 +63,7 @@ export interface PushSubscriptionPayload {
     p256dh: string;
     auth: string;
 }
+
 export interface MarketMover {
     ticker: string;
     companyName: string;
@@ -67,6 +74,7 @@ export interface MarketMover {
     currency: string | null;
     exchange: string | null;
 }
+
 export interface StockSearchResult {
     ticker: string;
     companyName: string;

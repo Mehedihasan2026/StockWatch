@@ -5,6 +5,8 @@ import mehedi.stockwatch.dto.CreateStockRequest;
 import mehedi.stockwatch.dto.CurrentPriceResponse;
 import mehedi.stockwatch.dto.StockResponse;
 import mehedi.stockwatch.dto.UpdateStockRequest;
+import mehedi.stockwatch.market.MarketDataService;
+import mehedi.stockwatch.market.MarketQuote;
 import mehedi.stockwatch.service.StockService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -18,11 +20,19 @@ public class StockController {
 
     private final StockService stockService;
 
+    private final MarketDataService
+            marketDataService;
+
+
     public StockController(
-            StockService stockService) {
+            StockService stockService,
+            MarketDataService marketDataService) {
 
         this.stockService =
                 stockService;
+
+        this.marketDataService =
+                marketDataService;
     }
 
 
@@ -101,10 +111,29 @@ public class StockController {
             @PathVariable Long id,
             Authentication authentication) {
 
-        return stockService
-                .getCurrentPrice(
-                        id,
-                        authentication.getName()
-                );
+        StockResponse stock =
+                stockService
+                        .getStockById(
+                                id,
+                                authentication
+                                        .getName()
+                        );
+
+
+        MarketQuote quote =
+                marketDataService
+                        .getQuote(
+                                stock.ticker()
+                        );
+
+
+        return new CurrentPriceResponse(
+                stock.ticker(),
+                quote.currentPrice(),
+                stock.currency(),
+                quote.lastUpdated(),
+                quote.marketStatus(),
+                quote.exchangeTimezone()
+        );
     }
 }
