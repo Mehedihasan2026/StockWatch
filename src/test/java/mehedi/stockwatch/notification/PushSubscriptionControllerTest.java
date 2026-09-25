@@ -2,143 +2,258 @@ package mehedi.stockwatch.notification;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 
 class PushSubscriptionControllerTest {
 
+    private static final String EMAIL =
+            "hasan@example.com";
+
     private PushSubscriptionService service;
+
     private MockMvc mockMvc;
+
+    private Authentication authentication;
+
 
     @BeforeEach
     void setUp() {
 
-        service = mock(PushSubscriptionService.class);
+        service =
+                mock(
+                        PushSubscriptionService.class
+                );
 
         PushSubscriptionController controller =
-                new PushSubscriptionController(service);
+                new PushSubscriptionController(
+                        service
+                );
 
         LocalValidatorFactoryBean validator =
                 new LocalValidatorFactoryBean();
 
         validator.afterPropertiesSet();
 
-        mockMvc = MockMvcBuilders
-                .standaloneSetup(controller)
-                .setValidator(validator)
-                .build();
+        mockMvc =
+                MockMvcBuilders
+                        .standaloneSetup(
+                                controller
+                        )
+                        .setValidator(
+                                validator
+                        )
+                        .build();
+
+        authentication =
+                new UsernamePasswordAuthenticationToken(
+                        EMAIL,
+                        "password",
+                        java.util.List.of()
+                );
     }
 
+
     @Test
-    void shouldReturn204_whenSubscriptionIsValid()
+    void shouldSaveValidSubscription()
             throws Exception {
 
-        String requestBody = """
+        String body = """
                 {
-                  "endpoint": "https://push.example/device123",
-                  "p256dh": "public-key",
-                  "auth": "auth-key"
+                    "endpoint": "https://push.example.com/123",
+                    "p256dh": "test-p256dh",
+                    "auth": "test-auth"
                 }
                 """;
 
         mockMvc.perform(
-                        post("/api/push-subscriptions")
-                                .contentType("application/json")
-                                .content(requestBody)
+                        post(
+                                "/api/push-subscriptions"
+                        )
+                                .principal(
+                                        authentication
+                                )
+                                .contentType(
+                                        "application/json"
+                                )
+                                .content(body)
                 )
-                .andExpect(status().isNoContent());
+                .andExpect(
+                        status()
+                                .isNoContent()
+                );
 
-        verify(service).saveSubscription(any());
+
+        verify(service)
+                .saveSubscription(
+                        any(
+                                PushSubscriptionRequest.class
+                        ),
+                        eq(EMAIL)
+                );
     }
 
+
     @Test
-    void shouldReturn400_whenEndpointIsMissing()
+    void shouldRejectMissingEndpoint()
             throws Exception {
 
-        String requestBody = """
+        String body = """
                 {
-                  "p256dh": "public-key",
-                  "auth": "auth-key"
+                    "endpoint": "",
+                    "p256dh": "test-p256dh",
+                    "auth": "test-auth"
                 }
                 """;
 
         mockMvc.perform(
-                        post("/api/push-subscriptions")
-                                .contentType("application/json")
-                                .content(requestBody)
+                        post(
+                                "/api/push-subscriptions"
+                        )
+                                .principal(
+                                        authentication
+                                )
+                                .contentType(
+                                        "application/json"
+                                )
+                                .content(body)
                 )
-                .andExpect(status().isBadRequest());
+                .andExpect(
+                        status()
+                                .isBadRequest()
+                );
 
-        verify(service, never())
-                .saveSubscription(any());
+
+        verify(
+                service,
+                never()
+        ).saveSubscription(
+                any(),
+                any()
+        );
     }
 
+
     @Test
-    void shouldReturn400_whenP256dhIsBlank()
+    void shouldRejectMissingP256dh()
             throws Exception {
 
-        String requestBody = """
+        String body = """
                 {
-                  "endpoint": "https://push.example/device123",
-                  "p256dh": "",
-                  "auth": "auth-key"
+                    "endpoint": "https://push.example.com/123",
+                    "p256dh": "",
+                    "auth": "test-auth"
                 }
                 """;
 
         mockMvc.perform(
-                        post("/api/push-subscriptions")
-                                .contentType("application/json")
-                                .content(requestBody)
+                        post(
+                                "/api/push-subscriptions"
+                        )
+                                .principal(
+                                        authentication
+                                )
+                                .contentType(
+                                        "application/json"
+                                )
+                                .content(body)
                 )
-                .andExpect(status().isBadRequest());
+                .andExpect(
+                        status()
+                                .isBadRequest()
+                );
 
-        verify(service, never())
-                .saveSubscription(any());
+
+        verify(
+                service,
+                never()
+        ).saveSubscription(
+                any(),
+                any()
+        );
     }
 
+
     @Test
-    void shouldReturn400_whenAuthIsMissing()
+    void shouldRejectMissingAuth()
             throws Exception {
 
-        String requestBody = """
+        String body = """
                 {
-                  "endpoint": "https://push.example/device123",
-                  "p256dh": "public-key"
+                    "endpoint": "https://push.example.com/123",
+                    "p256dh": "test-p256dh",
+                    "auth": ""
                 }
                 """;
 
         mockMvc.perform(
-                        post("/api/push-subscriptions")
-                                .contentType("application/json")
-                                .content(requestBody)
+                        post(
+                                "/api/push-subscriptions"
+                        )
+                                .principal(
+                                        authentication
+                                )
+                                .contentType(
+                                        "application/json"
+                                )
+                                .content(body)
                 )
-                .andExpect(status().isBadRequest());
+                .andExpect(
+                        status()
+                                .isBadRequest()
+                );
 
-        verify(service, never())
-                .saveSubscription(any());
+
+        verify(
+                service,
+                never()
+        ).saveSubscription(
+                any(),
+                any()
+        );
     }
+
+
     @Test
-    void shouldReturn204_whenSubscriptionIsDeleted()
+    void shouldDeleteSubscriptionForAuthenticatedUser()
             throws Exception {
 
+        String endpoint =
+                "https://push.example.com/123";
+
+
         mockMvc.perform(
-                        delete("/api/push-subscriptions")
+                        delete(
+                                "/api/push-subscriptions"
+                        )
+                                .principal(
+                                        authentication
+                                )
                                 .param(
                                         "endpoint",
-                                        "https://push.example/device123"
+                                        endpoint
                                 )
                 )
-                .andExpect(status().isNoContent());
+                .andExpect(
+                        status()
+                                .isNoContent()
+                );
 
-        verify(service).deleteSubscription(
-                "https://push.example/device123"
-        );
+
+        verify(service)
+                .deleteSubscription(
+                        endpoint,
+                        EMAIL
+                );
     }
 }

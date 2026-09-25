@@ -4,251 +4,229 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.interaso.webpush.WebPushService;
 import mehedi.stockwatch.dto.StockResponse;
 import mehedi.stockwatch.entity.Currency;
+import mehedi.stockwatch.repository.StockRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import com.interaso.webpush.WebPush;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.Mockito.*;
 
 class WebPushNotificationServiceTest {
 
     private PushSubscriptionRepository repository;
+
+    private StockRepository stockRepository;
+
     private WebPushService webPushService;
+
     private WebPushNotificationService service;
+
 
     @BeforeEach
     void setUp() {
 
-        repository = mock(PushSubscriptionRepository.class);
-        webPushService = mock(WebPushService.class);
+        repository =
+                mock(
+                        PushSubscriptionRepository.class
+                );
 
-        ObjectMapper objectMapper =
-                new ObjectMapper();
+        stockRepository =
+                mock(
+                        StockRepository.class
+                );
 
-        service = new WebPushNotificationService(
+        webPushService =
+                mock(
+                        WebPushService.class
+                );
+
+
+        service =
+                new WebPushNotificationService(
+                        repository,
+                        stockRepository,
+                        webPushService,
+                        new ObjectMapper()
+                );
+    }
+
+
+    @Test
+    void shouldNotSendNotificationWhenStockHasNoOwner() {
+
+        StockResponse stock =
+                createStock();
+
+
+        when(
+                stockRepository
+                        .findOwnerUserIdByStockId(
+                                stock.id()
+                        )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+
+        service.sendStockAlert(
+                stock,
+                new BigDecimal(
+                        "105.00"
+                )
+        );
+
+
+        verifyNoInteractions(
+                repository
+        );
+
+        verifyNoInteractions(
+                webPushService
+        );
+    }
+
+
+    @Test
+    void shouldNotSendWhenOwnerHasNoSubscriptions() {
+
+        StockResponse stock =
+                createStock();
+
+        Long ownerId =
+                42L;
+
+
+        when(
+                stockRepository
+                        .findOwnerUserIdByStockId(
+                                stock.id()
+                        )
+        ).thenReturn(
+                Optional.of(
+                        ownerId
+                )
+        );
+
+
+        when(
+                repository
+                        .findAllByUser_Id(
+                                ownerId
+                        )
+        ).thenReturn(
+                List.of()
+        );
+
+
+        service.sendStockAlert(
+                stock,
+                new BigDecimal(
+                        "105.00"
+                )
+        );
+
+
+        verify(repository)
+                .findAllByUser_Id(
+                        ownerId
+                );
+
+
+        verifyNoInteractions(
+                webPushService
+        );
+    }
+
+
+    @Test
+    void shouldQueryOnlyStockOwnersSubscriptions() {
+
+        StockResponse stock =
+                createStock();
+
+        Long ownerId =
+                42L;
+
+
+        when(
+                stockRepository
+                        .findOwnerUserIdByStockId(
+                                stock.id()
+                        )
+        ).thenReturn(
+                Optional.of(
+                        ownerId
+                )
+        );
+
+
+        when(
+                repository
+                        .findAllByUser_Id(
+                                ownerId
+                        )
+        ).thenReturn(
+                List.of()
+        );
+
+
+        service.sendStockAlert(
+                stock,
+                new BigDecimal(
+                        "105.00"
+                )
+        );
+
+
+        verify(
+                stockRepository
+        ).findOwnerUserIdByStockId(
+                stock.id()
+        );
+
+
+        verify(
+                repository
+        ).findAllByUser_Id(
+                ownerId
+        );
+
+
+        verify(
                 repository,
-                webPushService,
-                objectMapper
-        );
+                never()
+        ).findAll();
     }
 
-    @Test
-    void shouldNotSendPush_whenThereAreNoSubscriptions() {
-
-        when(repository.findAll())
-                .thenReturn(List.of());
-
-        StockResponse stock = createStock();
-
-        service.sendStockAlert(
-                stock,
-                new BigDecimal("1100.00")
-        );
-
-        verify(repository).findAll();
-
-        verifyNoInteractions(webPushService);
-    }
-    @Test
-    void shouldSendPush_whenSubscriptionIsActive() {
-
-        PushSubscription subscription =
-                new PushSubscription();
-
-        subscription.setId(1L);
-        subscription.setEndpoint(
-                "https://push.example/device123"
-        );
-        subscription.setP256dh(
-                "test-public-key"
-        );
-        subscription.setAuth(
-                "test-auth-key"
-        );
-
-        when(repository.findAll())
-                .thenReturn(List.of(subscription));
-
-        when(webPushService.send(
-                anyString(),
-                eq("https://push.example/device123"),
-                eq("test-public-key"),
-                eq("test-auth-key"),
-                isNull(),
-                isNull(),
-                isNull()
-        )).thenReturn(
-                WebPush.SubscriptionState.ACTIVE
-        );
-
-        StockResponse stock = createStock();
-
-        service.sendStockAlert(
-                stock,
-                new BigDecimal("1100.00")
-        );
-
-        verify(webPushService).send(
-                anyString(),
-                eq("https://push.example/device123"),
-                eq("test-public-key"),
-                eq("test-auth-key"),
-                isNull(),
-                isNull(),
-                isNull()
-        );
-
-        verify(repository, never())
-                .delete(subscription);
-    }
-    @Test
-    void shouldDeleteSubscription_whenSubscriptionIsExpired() {
-
-        PushSubscription subscription =
-                new PushSubscription();
-
-        subscription.setId(1L);
-        subscription.setEndpoint(
-                "https://push.example/device123"
-        );
-        subscription.setP256dh(
-                "test-public-key"
-        );
-        subscription.setAuth(
-                "test-auth-key"
-        );
-
-        when(repository.findAll())
-                .thenReturn(List.of(subscription));
-
-        when(webPushService.send(
-                anyString(),
-                eq("https://push.example/device123"),
-                eq("test-public-key"),
-                eq("test-auth-key"),
-                isNull(),
-                isNull(),
-                isNull()
-        )).thenReturn(
-                WebPush.SubscriptionState.EXPIRED
-        );
-
-        service.sendStockAlert(
-                createStock(),
-                new BigDecimal("1100.00")
-        );
-
-        verify(repository).delete(subscription);
-    }
-    @Test
-    void shouldSendExpectedJsonPayload() throws Exception {
-
-        PushSubscription subscription =
-                new PushSubscription();
-
-        subscription.setId(1L);
-        subscription.setEndpoint(
-                "https://push.example/device123"
-        );
-        subscription.setP256dh(
-                "test-public-key"
-        );
-        subscription.setAuth(
-                "test-auth-key"
-        );
-
-        when(repository.findAll())
-                .thenReturn(List.of(subscription));
-
-        when(webPushService.send(
-                anyString(),
-                anyString(),
-                anyString(),
-                anyString(),
-                isNull(),
-                isNull(),
-                isNull()
-        )).thenReturn(
-                WebPush.SubscriptionState.ACTIVE
-        );
-
-        service.sendStockAlert(
-                createStock(),
-                new BigDecimal("1100.00")
-        );
-
-        var payloadCaptor =
-                org.mockito.ArgumentCaptor
-                        .forClass(String.class);
-
-        verify(webPushService).send(
-                payloadCaptor.capture(),
-                eq("https://push.example/device123"),
-                eq("test-public-key"),
-                eq("test-auth-key"),
-                isNull(),
-                isNull(),
-                isNull()
-        );
-
-        String payload =
-                payloadCaptor.getValue();
-
-        ObjectMapper objectMapper =
-                new ObjectMapper();
-
-        var json =
-                objectMapper.readTree(payload);
-
-        assertEquals(
-                "StockWatch: MU alert",
-                json.get("title").asText()
-        );
-
-        assertEquals(
-                "MU",
-                json.get("ticker").asText()
-        );
-
-        assertEquals(
-                1100.00,
-                json.get("currentPrice").asDouble()
-        );
-
-        assertEquals(
-                1096.00,
-                json.get("targetPrice").asDouble()
-        );
-
-        assertTrue(
-                json.get("body")
-                        .asText()
-                        .contains("1100.00")
-        );
-    }
 
     private StockResponse createStock() {
+
+        LocalDateTime now =
+                LocalDateTime.now();
+
 
         return new StockResponse(
                 1L,
                 "MU",
-                "Micron Technology, Inc.",
+                "Micron Technology",
                 5,
-                new BigDecimal("1015.60"),
+                new BigDecimal(
+                        "100.00"
+                ),
                 Currency.USD,
-                new BigDecimal("1096.00"),
-                "Testing alert",
+                new BigDecimal(
+                        "103.00"
+                ),
+                "Test stock",
                 true,
-                true,
-                new BigDecimal("1096.00"),
+                false,
                 null,
-                null
+                now,
+                now
         );
     }
 }

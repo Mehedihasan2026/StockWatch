@@ -2,6 +2,7 @@ package mehedi.stockwatch.notification;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -11,23 +12,36 @@ public class PushSubscriptionController {
     private final PushSubscriptionService service;
 
     public PushSubscriptionController(
-            PushSubscriptionService service) {
-
+            PushSubscriptionService service
+    ) {
         this.service = service;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void saveSubscription(
-            @Valid @RequestBody PushSubscriptionRequest request) {
+    public void subscribe(
+            @Valid
+            @RequestBody
+            PushSubscriptionRequest request,
+            Authentication authentication
+    ) {
 
-        service.saveSubscription(request);
+        service.saveSubscription(
+                request,
+                authentication.getName()
+        );
     }
+
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteSubscription(
-            @RequestParam String endpoint) {
+    public void unsubscribe(
+            @RequestParam String endpoint,
+            Authentication authentication
+    ) {
 
-        service.deleteSubscription(endpoint);
+        service.deleteSubscription(
+                endpoint,
+                authentication.getName()
+        );
     }
 }

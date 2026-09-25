@@ -1,10 +1,10 @@
 package mehedi.stockwatch.notification;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.interaso.webpush.WebPush;
 import com.interaso.webpush.WebPushService;
 import mehedi.stockwatch.dto.StockResponse;
+import mehedi.stockwatch.repository.StockRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Primary;
@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Primary
@@ -24,15 +25,19 @@ public class WebPushNotificationService
             );
 
     private final PushSubscriptionRepository repository;
+    private final StockRepository stockRepository;
     private final WebPushService webPushService;
     private final ObjectMapper objectMapper;
 
     public WebPushNotificationService(
             PushSubscriptionRepository repository,
+            StockRepository stockRepository,
             WebPushService webPushService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper
+    ) {
 
         this.repository = repository;
+        this.stockRepository = stockRepository;
         this.webPushService = webPushService;
         this.objectMapper = objectMapper;
     }
@@ -40,25 +45,85 @@ public class WebPushNotificationService
     @Override
     public void sendStockAlert(
             StockResponse stock,
-            BigDecimal currentPrice) {
+            BigDecimal currentPrice
+    ) {
 
-        List<PushSubscription> subscriptions =
-                repository.findAll();
+        Optional<Long> ownerUserId =
+                stockRepository
+                        .findOwnerUserIdByStockId(
+                                stock.id()
+                        );
 
-        if (subscriptions.isEmpty()) {
+        /*
+         * Old stocks may temporarily have
+         * user_id = NULL.
+         */
+        if (ownerUserId.isEmpty()) {
 
-            log.info(
-                    "No push subscriptions available for {} alert",
-                    stock.ticker()
+            log.warn(
+                    "Skipping push alert for stock {} because it has no owner",
+                    stock.id()
             );
 
             return;
         }
 
-        String payload =
-                createPayload(stock, currentPrice);
+        List<PushSubscription> subscriptions =
+                repository.findAllByUser_Id(
+                        ownerUserId.get()
+                );
 
-        for (PushSubscription subscription : subscriptions) {
+        if (subscriptions.isEmpty()) {
+
+            log.debug(
+                    "No push subscriptions for user {}",
+                    ownerUserId.get()
+            );
+
+            return;
+        }
+
+        String payload;
+
+        try {
+
+            payload =
+                    objectMapper.writeValueAsString(
+                            new NotificationPayload(
+                                    "StockWatch: "
+                                            + stock.ticker()
+                                            + " alert",
+
+                                    stock.ticker()
+                                            + " is now "
+                                            + currentPrice
+                                            + " "
+                                            + stock.currency()
+                                            + " (target "
+                                            + stock.targetPrice()
+                                            + ")",
+
+                                    stock.ticker(),
+                                    currentPrice,
+                                    stock.targetPrice()
+                            )
+                    );
+
+        } catch (Exception exception) {
+
+            log.error(
+                    "Could not create push payload for {}",
+                    stock.ticker(),
+                    exception
+            );
+
+            return;
+        }
+
+        for (
+                PushSubscription subscription
+                : subscriptions
+        ) {
 
             try {
 
@@ -73,74 +138,34 @@ public class WebPushNotificationService
                                 null
                         );
 
-                if (state == WebPush.SubscriptionState.EXPIRED) {
-
-                    repository.delete(subscription);
+                if (
+                        state
+                                ==
+                                WebPush.SubscriptionState.EXPIRED
+                ) {
 
                     log.info(
-                            "Removed expired push subscription: {}",
+                            "Deleting expired push subscription {}",
                             subscription.getId()
                     );
 
-                } else {
-
-                    log.info(
-                            "Push notification sent for {}",
-                            stock.ticker()
+                    repository.delete(
+                            subscription
                     );
                 }
 
             } catch (Exception exception) {
 
-                log.error(
-                        "Failed to send push notification for {}: {}",
-                        stock.ticker(),
-                        exception.getMessage()
+                log.warn(
+                        "Failed to send push notification to subscription {}",
+                        subscription.getId(),
+                        exception
                 );
             }
         }
     }
 
-    private String createPayload(
-            StockResponse stock,
-            BigDecimal currentPrice) {
-
-        StockAlertPayload payload =
-                new StockAlertPayload(
-                        "StockWatch: "
-                                + stock.ticker()
-                                + " alert",
-
-                        stock.ticker()
-                                + " is now "
-                                + currentPrice
-                                + " "
-                                + stock.currency()
-                                + " (target "
-                                + stock.targetPrice()
-                                + ")",
-
-                        stock.ticker(),
-                        currentPrice,
-                        stock.targetPrice()
-                );
-
-        try {
-
-            return objectMapper.writeValueAsString(
-                    payload
-            );
-
-        } catch (JsonProcessingException exception) {
-
-            throw new IllegalStateException(
-                    "Failed to create push notification payload",
-                    exception
-            );
-        }
-    }
-
-    private record StockAlertPayload(
+    private record NotificationPayload(
             String title,
             String body,
             String ticker,
