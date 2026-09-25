@@ -1371,3 +1371,51 @@ button:disabled {
         flex: 1;
     }
 }
+
+
+/* =========================
+   MARKET STATUS / QUOTE TIME
+   ========================= */
+
+.stock-statuses {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.market-status {
+    height: fit-content;
+    padding: 5px 9px;
+    border-radius: 20px;
+    white-space: nowrap;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.market-status.open {
+    border: 1px solid rgba(63, 185, 80, 0.35);
+    background: rgba(63, 185, 80, 0.12);
+    color: #3fb950;
+}
+
+.market-status.closed {
+    border: 1px solid #30363d;
+    background: #21262d;
+    color: #8b949e;
+}
+
+.last-updated {
+    display: block;
+    margin-top: 7px;
+    color: #6e7681;
+    font-size: 0.78rem;
+}
+
+@media (max-width: 480px) {
+    .stock-statuses {
+        align-items: flex-end;
+        flex-direction: column;
+    }
+}

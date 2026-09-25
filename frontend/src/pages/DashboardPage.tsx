@@ -290,7 +290,13 @@ export default function DashboardPage({
                                     currentPrice:
                                         Number(
                                             priceResponse.currentPrice
-                                        )
+                                        ),
+                                    lastUpdated:
+                                    priceResponse.lastUpdated,
+                                    marketStatus:
+                                    priceResponse.marketStatus,
+                                    exchangeTimezone:
+                                    priceResponse.exchangeTimezone
                                 };
 
                             } catch (priceError) {
@@ -302,7 +308,10 @@ export default function DashboardPage({
 
                                 return {
                                     ...stock,
-                                    currentPrice: null
+                                    currentPrice: null,
+                                    lastUpdated: null,
+                                    marketStatus: null,
+                                    exchangeTimezone: null
                                 };
                             }
                         }
@@ -1542,21 +1551,43 @@ function StockCard({
                 </div>
 
 
-                <button
-                    type="button"
-                    className={
-                        stock.alertEnabled
-                            ? "badge active alert-badge-button"
-                            : "badge alert-badge-button"
-                    }
-                    onClick={onToggleAlert}
-                    title=
-                        "Click to enable or disable this stock alert"
-                >
-                    {stock.alertEnabled
-                        ? "Alert On"
-                        : "Alert Off"}
-                </button>
+                <div className="stock-statuses">
+
+                    {stock.marketStatus && (
+
+                        <span
+                            className={
+                                stock.marketStatus === "OPEN"
+                                    ? "market-status open"
+                                    : "market-status closed"
+                            }
+                        >
+                            Market {
+                            stock.marketStatus === "OPEN"
+                                ? "Open"
+                                : "Closed"
+                        }
+                        </span>
+                    )}
+
+
+                    <button
+                        type="button"
+                        className={
+                            stock.alertEnabled
+                                ? "badge active alert-badge-button"
+                                : "badge alert-badge-button"
+                        }
+                        onClick={onToggleAlert}
+                        title=
+                            "Click to enable or disable this stock alert"
+                    >
+                        {stock.alertEnabled
+                            ? "Alert On"
+                            : "Alert Off"}
+                    </button>
+
+                </div>
 
             </div>
 
@@ -1574,6 +1605,15 @@ function StockCard({
                         } ${stock.currency}`
                         : "Unavailable"}
                 </strong>
+
+
+                <small className="last-updated">
+                    Last updated: {
+                    formatLastUpdated(
+                        stock.lastUpdated
+                    )
+                }
+                </small>
 
             </div>
 
@@ -1725,6 +1765,38 @@ function formatPercent(
             : "";
 
     return `${prefix}${value.toFixed(2)}%`;
+}
+
+
+function formatLastUpdated(
+    value: string | null
+): string {
+
+    if (!value) {
+        return "Unavailable";
+    }
+
+
+    const date =
+        new Date(value);
+
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+        return "Unavailable";
+    }
+
+
+    return date.toLocaleString(
+        [],
+        {
+            dateStyle: "medium",
+            timeStyle: "short"
+        }
+    );
 }
 
 
