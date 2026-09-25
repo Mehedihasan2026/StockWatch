@@ -15,6 +15,8 @@ import org.springframework.security.web.authentication.session.ChangeSessionIdAu
 import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 
 @Configuration
 public class SecurityConfig {
@@ -26,10 +28,12 @@ public class SecurityConfig {
                 .createDelegatingPasswordEncoder();
     }
 
+
     @Bean
     public AuthenticationManager authenticationManager(
             UserDetailsService userDetailsService,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder
+    ) {
 
         DaoAuthenticationProvider provider =
                 new DaoAuthenticationProvider(
@@ -40,8 +44,11 @@ public class SecurityConfig {
                 passwordEncoder
         );
 
-        return new ProviderManager(provider);
+        return new ProviderManager(
+                provider
+        );
     }
+
 
     @Bean
     public SecurityContextRepository
@@ -50,6 +57,7 @@ public class SecurityConfig {
         return new HttpSessionSecurityContextRepository();
     }
 
+
     @Bean
     public SessionAuthenticationStrategy
     sessionAuthenticationStrategy() {
@@ -57,28 +65,67 @@ public class SecurityConfig {
         return new ChangeSessionIdAuthenticationStrategy();
     }
 
+
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            SecurityContextRepository
-                    securityContextRepository)
-            throws Exception {
+            SecurityContextRepository securityContextRepository
+    ) throws Exception {
+
+        /*
+         * We intentionally use the session-based
+         * CSRF repository because React retrieves
+         * the token explicitly from /api/auth/csrf.
+         */
+        HttpSessionCsrfTokenRepository csrfRepository =
+                new HttpSessionCsrfTokenRepository();
+
+        csrfRepository.setHeaderName(
+                "X-CSRF-TOKEN"
+        );
+
+
+        /*
+         * Use the raw token in the request header.
+         * This matches what our React api.ts sends.
+         */
+        CsrfTokenRequestAttributeHandler csrfHandler =
+                new CsrfTokenRequestAttributeHandler();
+
+        csrfHandler.setCsrfRequestAttributeName(
+                null
+        );
+
 
         http
-                .cors(Customizer.withDefaults())
+                .cors(
+                        Customizer.withDefaults()
+                )
 
                 .csrf(csrf ->
-                        csrf.spa()
+                        csrf
+                                .csrfTokenRepository(
+                                        csrfRepository
+                                )
+                                .csrfTokenRequestHandler(
+                                        csrfHandler
+                                )
                 )
 
                 .securityContext(context ->
-                        context.securityContextRepository(
-                                securityContextRepository
-                        )
+                        context
+                                .securityContextRepository(
+                                        securityContextRepository
+                                )
                 )
 
                 .authorizeHttpRequests(auth ->
                         auth
+
+                                /*
+                                 * Public authentication
+                                 * endpoints.
+                                 */
                                 .requestMatchers(
                                         "/api/auth/register",
                                         "/api/auth/login",
@@ -86,8 +133,21 @@ public class SecurityConfig {
                                 )
                                 .permitAll()
 
+                                /*
+                                 * Public market page.
+                                 */
                                 .requestMatchers(
                                         "/api/market/**"
+                                )
+                                .permitAll()
+
+                                /*
+                                 * Public VAPID key.
+                                 *
+                                 * This is safe to expose.
+                                 */
+                                .requestMatchers(
+                                        "/api/push/public-key"
                                 )
                                 .permitAll()
 
@@ -96,6 +156,10 @@ public class SecurityConfig {
                                 )
                                 .permitAll()
 
+                                /*
+                                 * Everything else requires
+                                 * authentication.
+                                 */
                                 .anyRequest()
                                 .authenticated()
                 )
@@ -129,11 +193,14 @@ public class SecurityConfig {
                                                         204
                                                 )
                                 )
-                                .invalidateHttpSession(true)
+                                .invalidateHttpSession(
+                                        true
+                                )
                                 .deleteCookies(
                                         "JSESSIONID"
                                 )
                 );
+
 
         return http.build();
     }

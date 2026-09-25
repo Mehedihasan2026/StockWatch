@@ -39,7 +39,8 @@ function requiresCsrf(method: string): boolean {
 }
 
 
-async function loadCsrfToken(): Promise<CsrfResponse> {
+async function loadCsrfToken():
+    Promise<CsrfResponse> {
 
     const response =
         await fetch(
@@ -50,6 +51,7 @@ async function loadCsrfToken(): Promise<CsrfResponse> {
         );
 
     if (!response.ok) {
+
         throw new Error(
             "Could not initialize security token."
         );
@@ -67,7 +69,7 @@ async function loadCsrfToken(): Promise<CsrfResponse> {
 async function getCsrfToken():
     Promise<CsrfResponse> {
 
-    if (csrfToken) {
+    if (csrfToken !== null) {
         return csrfToken;
     }
 
