@@ -3,6 +3,7 @@ name: StockWatch CI/CD
 on:
   push:
     branches:
+      - main
       - master
 
   pull_request:
@@ -15,29 +16,18 @@ permissions:
   contents: read
 
 concurrency:
-  group: stockwatch-production
+  group: stockwatch-${{ github.ref }}
   cancel-in-progress: false
 
-
 jobs:
-
-  # =========================================================
-  # TEST + BUILD
-  # =========================================================
 
   build:
     name: Test and Build
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v4
-
-
-      # -------------------------
-      # Backend
-      # -------------------------
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -46,18 +36,14 @@ jobs:
           java-version: "21"
           cache: gradle
 
-
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
-
 
       - name: Run backend tests
         run: ./gradlew clean test
 
-
       - name: Build Spring Boot JAR
         run: ./gradlew bootJar
-
 
       - name: Prepare backend artifact
         run: |
@@ -69,14 +55,7 @@ jobs:
           fi
 
           cp "$JAR_FILE" stockwatch.jar
-
-          echo "Backend artifact:"
           ls -lh stockwatch.jar
-
-
-      # -------------------------
-      # Frontend
-      # -------------------------
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -85,20 +64,13 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
 
-
       - name: Build frontend
         working-directory: frontend
         run: npm run build
-
-
-      # -------------------------
-      # Save artifacts
-      # -------------------------
 
       - name: Upload backend artifact
         uses: actions/upload-artifact@v4
@@ -107,19 +79,12 @@ jobs:
           path: stockwatch.jar
           retention-days: 7
 
-
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
         with:
           name: stockwatch-frontend
           path: frontend/dist/
           retention-days: 7
-
-
-
-  # =========================================================
-  # BACKEND DEPLOYMENT - AWS EC2
-  # =========================================================
 
   deploy-backend:
     name: Deploy Backend to EC2
@@ -137,48 +102,37 @@ jobs:
       name: production-backend
       url: https://api.stockwatch.mehedi.dk
 
-
     steps:
-
       - name: Download backend artifact
         uses: actions/download-artifact@v4
         with:
           name: stockwatch-backend
           path: backend-artifact
 
-
       - name: Configure SSH
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-
         run: |
           mkdir -p ~/.ssh
-
-          echo "$EC2_SSH_KEY" > ~/.ssh/stockwatch.pem
-
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/stockwatch.pem
           chmod 600 ~/.ssh/stockwatch.pem
-
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
-
 
       - name: Upload JAR to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
-
         run: |
           scp \
             -i ~/.ssh/stockwatch.pem \
             backend-artifact/stockwatch.jar \
             "$EC2_USER@$EC2_HOST:/home/$EC2_USER/stockwatch-new.jar"
 
-
-      - name: Deploy and restart StockWatch
+      - name: Deploy, verify, and rollback if needed
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
-
         run: |
           ssh \
             -i ~/.ssh/stockwatch.pem \
@@ -188,68 +142,64 @@ jobs:
           set -e
 
           echo "Stopping StockWatch..."
-
           sudo systemctl stop stockwatch
 
-
           echo "Creating backup..."
-
           if [ -f /opt/stockwatch/stockwatch.jar ]; then
               sudo cp \
                   /opt/stockwatch/stockwatch.jar \
                   /opt/stockwatch/stockwatch-backup.jar
           fi
 
-
           echo "Installing new JAR..."
-
           sudo mv \
               /home/ec2-user/stockwatch-new.jar \
               /opt/stockwatch/stockwatch.jar
 
-
           echo "Starting StockWatch..."
-
           sudo systemctl start stockwatch
 
+          echo "Waiting for health check..."
+          HEALTHY=false
 
-          echo "Waiting for application startup..."
+          for attempt in $(seq 1 12); do
+              if curl \
+                  --fail \
+                  --silent \
+                  --show-error \
+                  http://localhost:8081/api/auth/csrf \
+                  > /dev/null
+              then
+                  HEALTHY=true
+                  break
+              fi
 
-          sleep 12
+              echo "Health check attempt $attempt/12 failed; retrying..."
+              sleep 5
+          done
 
-
-          echo "Checking application..."
-
-          if curl \
-              --fail \
-              --silent \
-              --show-error \
-              http://localhost:8081/api/auth/csrf \
-              > /dev/null
-          then
-
+          if [ "$HEALTHY" = "true" ]; then
               echo "StockWatch backend is healthy."
-
-          else
-
-              echo "Health check failed."
-
-              sudo journalctl \
-                  -u stockwatch \
-                  -n 100 \
-                  --no-pager
-
-              exit 1
-
+              exit 0
           fi
 
+          echo "New deployment failed health checks."
+          sudo journalctl \
+              -u stockwatch \
+              -n 100 \
+              --no-pager
+
+          if [ -f /opt/stockwatch/stockwatch-backup.jar ]; then
+              echo "Rolling back to previous JAR..."
+              sudo systemctl stop stockwatch
+              sudo cp \
+                  /opt/stockwatch/stockwatch-backup.jar \
+                  /opt/stockwatch/stockwatch.jar
+              sudo systemctl start stockwatch
+          fi
+
+          exit 1
           EOF
-
-
-
-  # =========================================================
-  # FRONTEND DEPLOYMENT - SIMPLY.COM
-  # =========================================================
 
   deploy-frontend:
     name: Deploy Frontend to Simply.com
@@ -268,26 +218,18 @@ jobs:
       name: production-frontend
       url: https://stockwatch.mehedi.dk
 
-
     steps:
-
       - name: Download frontend artifact
         uses: actions/download-artifact@v4
         with:
           name: stockwatch-frontend
           path: frontend-dist
 
-
       - name: Deploy frontend via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
-
         with:
           server: ftp.simply.com
-
           username: ${{ secrets.SIMPLY_FTP_USER }}
-
           password: ${{ secrets.SIMPLY_FTP_PASS }}
-
           local-dir: ./frontend-dist/
-
-          server-dir: ${{ secrets.SIMPLY_REMOTE_DIR }}
+          server-dir: /stockwatch/
