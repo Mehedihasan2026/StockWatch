@@ -2,6 +2,7 @@ import {
     type FormEvent,
     useEffect,
     useMemo,
+    useRef,
     useState
 } from "react";
 
@@ -27,6 +28,12 @@ import type {
 import "../App.css";
 
 
+interface DashboardPageProps {
+    displayName: string;
+    onLogout: () => Promise<void>;
+}
+
+
 interface StockFormState {
     ticker: string;
     companyName: string;
@@ -49,7 +56,10 @@ const EMPTY_FORM: StockFormState = {
 };
 
 
-export default function DashboardPage() {
+export default function DashboardPage({
+                                          displayName,
+                                          onLogout
+                                      }: DashboardPageProps) {
 
     const [stocks, setStocks] =
         useState<DashboardStock[]>([]);
@@ -60,11 +70,17 @@ export default function DashboardPage() {
     const [refreshing, setRefreshing] =
         useState(false);
 
+    const [saving, setSaving] =
+        useState(false);
+
+    const [loggingOut, setLoggingOut] =
+        useState(false);
+
     const [error, setError] =
         useState<string | null>(null);
 
-    const [formOpen, setFormOpen] =
-        useState(false);
+    const [message, setMessage] =
+        useState<string | null>(null);
 
     const [editingStock, setEditingStock] =
         useState<Stock | null>(null);
@@ -74,8 +90,6 @@ export default function DashboardPage() {
             EMPTY_FORM
         );
 
-    const [saving, setSaving] =
-        useState(false);
     const [
         tickerResults,
         setTickerResults
@@ -101,60 +115,52 @@ export default function DashboardPage() {
         setNotificationLoading
     ] = useState(false);
 
+    const skipNextTickerSearch =
+        useRef(false);
 
-    /* =========================
-       INITIAL LOAD
-       ========================= */
+    const formSectionRef =
+        useRef<HTMLElement | null>(
+            null
+        );
+
 
     useEffect(() => {
 
-        void loadPortfolio();
-
+        void loadPortfolio(true);
         void checkNotificationStatus();
-
 
         const interval =
             window.setInterval(
                 () => {
-                    void refreshPrices();
+                    void loadPortfolio(false);
                 },
                 60_000
             );
 
-
         return () => {
-            window.clearInterval(
-                interval
-            );
+            window.clearInterval(interval);
         };
 
     }, []);
+
+
     useEffect(() => {
 
-        if (!formOpen) {
-
-            setTickerResults([]);
-            setTickerSearchOpen(false);
-
+        if (skipNextTickerSearch.current) {
+            skipNextTickerSearch.current = false;
             return;
         }
-
 
         const query =
             form.ticker.trim();
 
-
         if (query.length < 1) {
-
             setTickerResults([]);
             setTickerSearchOpen(false);
-
             return;
         }
 
-
         let cancelled = false;
-
 
         const timeout =
             window.setTimeout(
@@ -170,15 +176,10 @@ export default function DashboardPage() {
                                 6
                             );
 
-
                         if (!cancelled) {
-
-                            setTickerResults(
-                                results
-                            );
-
+                            setTickerResults(results);
                             setTickerSearchOpen(
-                                true
+                                results.length > 0
                             );
                         }
 
@@ -189,45 +190,28 @@ export default function DashboardPage() {
                             searchError
                         );
 
-
                         if (!cancelled) {
-
                             setTickerResults([]);
+                            setTickerSearchOpen(false);
                         }
 
                     } finally {
 
                         if (!cancelled) {
-
-                            setTickerSearching(
-                                false
-                            );
+                            setTickerSearching(false);
                         }
                     }
-
                 },
                 350
             );
 
-
         return () => {
-
             cancelled = true;
-
-            window.clearTimeout(
-                timeout
-            );
+            window.clearTimeout(timeout);
         };
 
-    }, [
-        form.ticker,
-        formOpen
-    ]);
+    }, [form.ticker]);
 
-
-    /* =========================
-       PORTFOLIO CALCULATIONS
-       ========================= */
 
     const portfolioSummary =
         useMemo(() => {
@@ -242,36 +226,18 @@ export default function DashboardPage() {
                     *
                     stock.shares;
 
-
-                if (
-                    stock.currentPrice !== null
-                ) {
-
-                    currentValue +=
-                        Number(
-                            stock.currentPrice
-                        )
-                        *
-                        stock.shares;
-
-                } else {
-
-                    /*
-                     * If Yahoo temporarily fails,
-                     * don't make portfolio value
-                     * appear as zero.
-                     */
-                    currentValue +=
+                currentValue +=
+                    (
+                        stock.currentPrice
+                        ??
                         Number(stock.buyPrice)
-                        *
-                        stock.shares;
-                }
+                    )
+                    *
+                    stock.shares;
             }
-
 
             const profitLoss =
                 currentValue - invested;
-
 
             const returnPercent =
                 invested > 0
@@ -280,7 +246,6 @@ export default function DashboardPage() {
                     invested
                 ) * 100
                     : 0;
-
 
             return {
                 invested,
@@ -292,20 +257,20 @@ export default function DashboardPage() {
         }, [stocks]);
 
 
-    /* =========================
-       LOAD STOCKS + PRICES
-       ========================= */
+    async function loadPortfolio(
+        showLoading: boolean
+    ) {
 
-    async function loadPortfolio() {
+        if (showLoading) {
+            setLoading(true);
+        }
 
-        setLoading(true);
         setError(null);
 
         try {
 
             const stockData =
                 await getStocks();
-
 
             const stocksWithPrices =
                 await Promise.all(
@@ -320,13 +285,11 @@ export default function DashboardPage() {
                                         stock.id
                                     );
 
-
                                 return {
                                     ...stock,
                                     currentPrice:
                                         Number(
-                                            priceResponse
-                                                .currentPrice
+                                            priceResponse.currentPrice
                                         )
                                 };
 
@@ -337,7 +300,6 @@ export default function DashboardPage() {
                                     priceError
                                 );
 
-
                                 return {
                                     ...stock,
                                     currentPrice: null
@@ -347,16 +309,11 @@ export default function DashboardPage() {
                     )
                 );
 
-
-            setStocks(
-                stocksWithPrices
-            );
+            setStocks(stocksWithPrices);
 
         } catch (loadError) {
 
-            console.error(
-                loadError
-            );
+            console.error(loadError);
 
             setError(
                 loadError instanceof Error
@@ -366,60 +323,25 @@ export default function DashboardPage() {
 
         } finally {
 
-            setLoading(false);
+            if (showLoading) {
+                setLoading(false);
+            }
         }
     }
 
 
     async function refreshPrices() {
 
-        if (stocks.length === 0) {
-            return;
-        }
-
-
         setRefreshing(true);
+        setMessage(null);
 
         try {
 
-            const refreshed =
-                await Promise.all(
+            await loadPortfolio(false);
 
-                    stocks.map(
-                        async stock => {
-
-                            try {
-
-                                const response =
-                                    await getCurrentPrice(
-                                        stock.id
-                                    );
-
-
-                                return {
-                                    ...stock,
-                                    currentPrice:
-                                        Number(
-                                            response
-                                                .currentPrice
-                                        )
-                                };
-
-                            } catch (priceError) {
-
-                                console.error(
-                                    `Could not refresh ${stock.ticker}`,
-                                    priceError
-                                );
-
-                                return stock;
-                            }
-                        }
-                    )
-                );
-
-
-            setStocks(refreshed);
+            setMessage(
+                "Prices refreshed."
+            );
 
         } finally {
 
@@ -428,87 +350,71 @@ export default function DashboardPage() {
     }
 
 
-    /* =========================
-       CREATE / EDIT
-       ========================= */
-
-    function openCreateForm() {
+    function resetForm() {
 
         setEditingStock(null);
-
-        setForm(
-            EMPTY_FORM
-        );
-
-        setError(null);
-        setFormOpen(true);
+        setForm(EMPTY_FORM);
+        setTickerResults([]);
+        setTickerSearchOpen(false);
     }
 
 
-    function openEditForm(
+    function editStock(
         stock: Stock
     ) {
+
+        skipNextTickerSearch.current =
+            true;
 
         setEditingStock(stock);
 
         setForm({
-            ticker:
-            stock.ticker,
-
-            companyName:
-            stock.companyName,
-
-            shares:
-                String(stock.shares),
-
-            buyPrice:
-                String(stock.buyPrice),
-
-            targetPrice:
-                String(stock.targetPrice),
-
-            notes:
-                stock.notes ?? "",
-
-            alertEnabled:
-            stock.alertEnabled
+            ticker: stock.ticker,
+            companyName: stock.companyName,
+            shares: String(stock.shares),
+            buyPrice: String(stock.buyPrice),
+            targetPrice: String(stock.targetPrice),
+            notes: stock.notes ?? "",
+            alertEnabled: stock.alertEnabled
         });
 
         setError(null);
-        setFormOpen(true);
-    }
+        setMessage(null);
 
+        window.setTimeout(
+            () => {
 
-    function closeForm() {
-
-        setFormOpen(false);
-        setEditingStock(null);
-
-        setForm(
-            EMPTY_FORM
+                formSectionRef.current
+                    ?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start"
+                    });
+            },
+            0
         );
     }
+
+
     function selectTicker(
         result: StockSearchResult
     ) {
 
+        skipNextTickerSearch.current =
+            true;
+
         setForm(
             current => ({
                 ...current,
-
-                ticker:
-                result.ticker,
-
+                ticker: result.ticker,
                 companyName:
                 result.companyName
             })
         );
 
-
         setTickerResults([]);
-
         setTickerSearchOpen(false);
     }
+
 
     async function handleSubmit(
         event: FormEvent<HTMLFormElement>
@@ -518,7 +424,7 @@ export default function DashboardPage() {
 
         setSaving(true);
         setError(null);
-
+        setMessage(null);
 
         try {
 
@@ -531,7 +437,6 @@ export default function DashboardPage() {
             const targetPrice =
                 Number(form.targetPrice);
 
-
             if (
                 !Number.isInteger(shares)
                 ||
@@ -542,7 +447,6 @@ export default function DashboardPage() {
                     "Shares must be a positive whole number."
                 );
             }
-
 
             if (
                 !Number.isFinite(buyPrice)
@@ -555,7 +459,6 @@ export default function DashboardPage() {
                 );
             }
 
-
             if (
                 !Number.isFinite(targetPrice)
                 ||
@@ -567,9 +470,7 @@ export default function DashboardPage() {
                 );
             }
 
-
             const input: StockInput = {
-
                 ticker:
                     form.ticker
                         .trim()
@@ -580,11 +481,8 @@ export default function DashboardPage() {
                         .trim(),
 
                 shares,
-
                 buyPrice,
-
                 currency: "USD",
-
                 targetPrice,
 
                 notes:
@@ -594,7 +492,6 @@ export default function DashboardPage() {
                 form.alertEnabled
             };
 
-
             if (editingStock) {
 
                 await updateStock(
@@ -602,23 +499,26 @@ export default function DashboardPage() {
                     input
                 );
 
+                setMessage(
+                    `${input.ticker} updated.`
+                );
+
             } else {
 
-                await createStock(
-                    input
+                await createStock(input);
+
+                setMessage(
+                    `${input.ticker} added.`
                 );
             }
 
+            resetForm();
 
-            closeForm();
-
-            await loadPortfolio();
+            await loadPortfolio(false);
 
         } catch (saveError) {
 
-            console.error(
-                saveError
-            );
+            console.error(saveError);
 
             setError(
                 saveError instanceof Error
@@ -633,48 +533,42 @@ export default function DashboardPage() {
     }
 
 
-    /* =========================
-       DELETE
-       ========================= */
-
     async function handleDelete(
         stock: Stock
     ) {
 
         const confirmed =
             window.confirm(
-                `Remove ${stock.ticker} from your portfolio?`
+                `Delete ${stock.ticker} from StockWatch?`
             );
-
 
         if (!confirmed) {
             return;
         }
 
-
         try {
 
             setError(null);
+            setMessage(null);
 
-            await deleteStock(
+            await deleteStock(stock.id);
+
+            if (
+                editingStock?.id ===
                 stock.id
+            ) {
+                resetForm();
+            }
+
+            setMessage(
+                `${stock.ticker} deleted.`
             );
 
-
-            setStocks(
-                current =>
-                    current.filter(
-                        item =>
-                            item.id !==
-                            stock.id
-                    )
-            );
+            await loadPortfolio(false);
 
         } catch (deleteError) {
 
-            console.error(
-                deleteError
-            );
+            console.error(deleteError);
 
             setError(
                 deleteError instanceof Error
@@ -685,10 +579,6 @@ export default function DashboardPage() {
     }
 
 
-    /* =========================
-       ALERT TOGGLE
-       ========================= */
-
     async function handleAlertToggle(
         stock: Stock
     ) {
@@ -696,30 +586,21 @@ export default function DashboardPage() {
         try {
 
             setError(null);
-
+            setMessage(null);
 
             const input: StockInput = {
-
-                ticker:
-                stock.ticker,
-
+                ticker: stock.ticker,
                 companyName:
                 stock.companyName,
-
-                shares:
-                stock.shares,
+                shares: stock.shares,
 
                 buyPrice:
-                    Number(
-                        stock.buyPrice
-                    ),
+                    Number(stock.buyPrice),
 
                 currency: "USD",
 
                 targetPrice:
-                    Number(
-                        stock.targetPrice
-                    ),
+                    Number(stock.targetPrice),
 
                 notes:
                     stock.notes ?? "",
@@ -728,20 +609,17 @@ export default function DashboardPage() {
                     !stock.alertEnabled
             };
 
-
             const updated =
                 await updateStock(
                     stock.id,
                     input
                 );
 
-
             setStocks(
                 current =>
                     current.map(
                         item =>
-                            item.id ===
-                            stock.id
+                            item.id === stock.id
                                 ? {
                                     ...item,
                                     ...updated
@@ -750,11 +628,17 @@ export default function DashboardPage() {
                     )
             );
 
+            setMessage(
+                `${stock.ticker} alert ${
+                    updated.alertEnabled
+                        ? "enabled"
+                        : "disabled"
+                }.`
+            );
+
         } catch (toggleError) {
 
-            console.error(
-                toggleError
-            );
+            console.error(toggleError);
 
             setError(
                 toggleError instanceof Error
@@ -764,10 +648,6 @@ export default function DashboardPage() {
         }
     }
 
-
-    /* =========================
-       WEB PUSH
-       ========================= */
 
     async function checkNotificationStatus() {
 
@@ -797,11 +677,7 @@ export default function DashboardPage() {
                     .getSubscription();
 
             if (!subscription) {
-
-                setNotificationEnabled(
-                    false
-                );
-
+                setNotificationEnabled(false);
                 return;
             }
 
@@ -816,18 +692,11 @@ export default function DashboardPage() {
                 json.keys?.auth
             ) {
 
-                /*
-                 * Re-sync this browser subscription
-                 * with the currently logged-in user.
-                 */
                 await savePushSubscription({
-
                     endpoint:
                     json.endpoint,
-
                     p256dh:
                     json.keys.p256dh,
-
                     auth:
                     json.keys.auth
                 });
@@ -849,7 +718,7 @@ export default function DashboardPage() {
 
         setNotificationLoading(true);
         setError(null);
-
+        setMessage(null);
 
         try {
 
@@ -865,7 +734,6 @@ export default function DashboardPage() {
                 );
             }
 
-
             if (
                 !(
                     "PushManager"
@@ -877,7 +745,6 @@ export default function DashboardPage() {
                     "Push notifications are not supported by this browser."
                 );
             }
-
 
             if (
                 !(
@@ -891,11 +758,9 @@ export default function DashboardPage() {
                 );
             }
 
-
             const permission =
                 await Notification
                     .requestPermission();
-
 
             if (
                 permission !==
@@ -907,7 +772,6 @@ export default function DashboardPage() {
                 );
             }
 
-
             const registration =
                 await navigator
                     .serviceWorker
@@ -915,32 +779,25 @@ export default function DashboardPage() {
                         "/service-worker.js"
                     );
 
-
             await navigator
                 .serviceWorker
                 .ready;
-
 
             let subscription =
                 await registration
                     .pushManager
                     .getSubscription();
 
-
             if (!subscription) {
 
                 const publicKey =
                     await getVapidPublicKey();
 
-
                 subscription =
                     await registration
                         .pushManager
                         .subscribe({
-
-                            userVisibleOnly:
-                                true,
-
+                            userVisibleOnly: true,
                             applicationServerKey:
                                 urlBase64ToArrayBuffer(
                                     publicKey
@@ -948,10 +805,8 @@ export default function DashboardPage() {
                         });
             }
 
-
             const json =
                 subscription.toJSON();
-
 
             if (
                 !json.endpoint
@@ -966,29 +821,24 @@ export default function DashboardPage() {
                 );
             }
 
-
             await savePushSubscription({
-
                 endpoint:
                 json.endpoint,
-
                 p256dh:
                 json.keys.p256dh,
-
                 auth:
                 json.keys.auth
             });
 
+            setNotificationEnabled(true);
 
-            setNotificationEnabled(
-                true
+            setMessage(
+                "Browser notifications enabled."
             );
 
         } catch (pushError) {
 
-            console.error(
-                pushError
-            );
+            console.error(pushError);
 
             setError(
                 pushError instanceof Error
@@ -1007,7 +857,7 @@ export default function DashboardPage() {
 
         setNotificationLoading(true);
         setError(null);
-
+        setMessage(null);
 
         try {
 
@@ -1017,36 +867,24 @@ export default function DashboardPage() {
                     in navigator
                 )
             ) {
-
-                setNotificationEnabled(
-                    false
-                );
-
+                setNotificationEnabled(false);
                 return;
             }
-
 
             const registration =
                 await navigator
                     .serviceWorker
                     .getRegistration();
 
-
             if (!registration) {
-
-                setNotificationEnabled(
-                    false
-                );
-
+                setNotificationEnabled(false);
                 return;
             }
-
 
             const subscription =
                 await registration
                     .pushManager
                     .getSubscription();
-
 
             if (subscription) {
 
@@ -1054,21 +892,18 @@ export default function DashboardPage() {
                     subscription.endpoint
                 );
 
-
-                await subscription
-                    .unsubscribe();
+                await subscription.unsubscribe();
             }
 
+            setNotificationEnabled(false);
 
-            setNotificationEnabled(
-                false
+            setMessage(
+                "Browser notifications disabled."
             );
 
         } catch (pushError) {
 
-            console.error(
-                pushError
-            );
+            console.error(pushError);
 
             setError(
                 pushError instanceof Error
@@ -1083,30 +918,62 @@ export default function DashboardPage() {
     }
 
 
-    /* =========================
-       UI
-       ========================= */
+    async function handleNotifications() {
+
+        if (notificationEnabled) {
+            await disableNotifications();
+        } else {
+            await enableNotifications();
+        }
+    }
+
+
+    async function handleLogout() {
+
+        setLoggingOut(true);
+        setError(null);
+
+        try {
+
+            await onLogout();
+
+        } catch (logoutError) {
+
+            console.error(logoutError);
+
+            setError(
+                "Could not log out."
+            );
+
+        } finally {
+
+            setLoggingOut(false);
+        }
+    }
+
 
     return (
 
         <main className="app">
 
-            <header className="app-header">
+            <header className="header">
 
                 <div>
-
-                    <p className="eyebrow">
-                        STOCK MANAGEMENT SYSTEM
-                    </p>
 
                     <h1>
                         StockWatch
                     </h1>
 
-                    <p className="subtitle">
-                        Track your portfolio and
-                        receive alerts when your
-                        targets are reached.
+                    <p>
+                        Monitor your positions,
+                        targets and alerts.
+                    </p>
+
+                    <p className="dashboard-user">
+                        Signed in as{" "}
+                        <strong>
+                            {displayName}
+                        </strong>
                     </p>
 
                 </div>
@@ -1117,25 +984,50 @@ export default function DashboardPage() {
                     <button
                         type="button"
                         className="secondary-button"
-                        disabled={refreshing}
+                        disabled={
+                            notificationLoading
+                        }
+                        onClick={() =>
+                            void handleNotifications()
+                        }
+                    >
+                        {notificationLoading
+                            ? "Please wait..."
+                            : notificationEnabled
+                                ? "Disable Notifications"
+                                : "Enable Notifications"}
+                    </button>
+
+
+                    <button
+                        type="button"
+                        className="refresh-button"
+                        disabled={
+                            refreshing
+                            ||
+                            loading
+                        }
                         onClick={() =>
                             void refreshPrices()
                         }
                     >
                         {refreshing
                             ? "Refreshing..."
-                            : "Refresh prices"}
+                            : "Refresh"}
                     </button>
 
 
                     <button
                         type="button"
-                        className="primary-button"
-                        onClick={
-                            openCreateForm
+                        className="logout-button"
+                        disabled={loggingOut}
+                        onClick={() =>
+                            void handleLogout()
                         }
                     >
-                        + Add stock
+                        {loggingOut
+                            ? "Logging out..."
+                            : "Log out"}
                     </button>
 
                 </div>
@@ -1144,670 +1036,407 @@ export default function DashboardPage() {
 
 
             {error && (
-
-                <div className="error-banner">
-
-                    <span>
-                        {error}
-                    </span>
-
-                    <button
-                        type="button"
-                        onClick={() =>
-                            setError(null)
-                        }
-                    >
-                        ×
-                    </button>
-
+                <div className="error">
+                    {error}
                 </div>
             )}
 
 
-            {/* PORTFOLIO SUMMARY */}
+            {message && (
+                <div className="success">
+                    {message}
+                </div>
+            )}
 
-            <section className="summary-grid">
+
+            <section className="portfolio-summary">
 
                 <SummaryCard
                     label="Invested"
                     value={
                         formatMoney(
-                            portfolioSummary
-                                .invested
+                            portfolioSummary.invested
                         )
                     }
                 />
-
 
                 <SummaryCard
-                    label="Current value"
+                    label="Current Value"
                     value={
                         formatMoney(
-                            portfolioSummary
-                                .currentValue
+                            portfolioSummary.currentValue
                         )
                     }
                 />
-
 
                 <SummaryCard
                     label="Profit / Loss"
                     value={
                         formatSignedMoney(
-                            portfolioSummary
-                                .profitLoss
+                            portfolioSummary.profitLoss
                         )
                     }
-
                     positive={
-                        portfolioSummary
-                            .profitLoss >= 0
+                        portfolioSummary.profitLoss >= 0
                     }
                 />
-
 
                 <SummaryCard
-                    label="Total return"
+                    label="Total Return"
                     value={
                         formatPercent(
-                            portfolioSummary
-                                .returnPercent
+                            portfolioSummary.returnPercent
                         )
                     }
-
                     positive={
-                        portfolioSummary
-                            .returnPercent >= 0
+                        portfolioSummary.returnPercent >= 0
                     }
                 />
 
             </section>
 
 
-            {/* PUSH SETTINGS */}
-
-            <section className="notification-panel">
-
-                <div>
-
-                    <h2>
-                        Price notifications
-                    </h2>
-
-                    <p>
-                        Receive browser notifications
-                        when your stocks reach their
-                        target prices.
-                    </p>
-
-                </div>
-
-
-                {notificationEnabled
-                    ? (
-
-                        <button
-                            type="button"
-                            className=
-                                "secondary-button"
-
-                            disabled={
-                                notificationLoading
-                            }
-
-                            onClick={() =>
-                                void disableNotifications()
-                            }
-                        >
-
-                            {notificationLoading
-                                ? "Disabling..."
-                                : "Disable notifications"}
-
-                        </button>
-
-                    )
-                    : (
-
-                        <button
-                            type="button"
-                            className=
-                                "primary-button"
-
-                            disabled={
-                                notificationLoading
-                            }
-
-                            onClick={() =>
-                                void enableNotifications()
-                            }
-                        >
-
-                            {notificationLoading
-                                ? "Enabling..."
-                                : "Enable notifications"}
-
-                        </button>
-                    )
-                }
-
-            </section>
-
-
-            {/* STOCKS */}
-
-            <section className="portfolio-section">
+            <section
+                className="stock-form-section"
+                ref={formSectionRef}
+            >
 
                 <div className="section-heading">
 
                     <div>
 
                         <h2>
-                            My portfolio
+                            {editingStock
+                                ? "Edit Stock"
+                                : "Add Stock"}
                         </h2>
 
                         <p>
-                            {stocks.length}
-                            {" "}
-                            {stocks.length === 1
-                                ? "stock"
-                                : "stocks"}
+                            Prices are currently
+                            tracked in USD.
                         </p>
 
                     </div>
 
+
+                    {editingStock && (
+                        <button
+                            type="button"
+                            className="text-button"
+                            onClick={resetForm}
+                        >
+                            Cancel edit
+                        </button>
+                    )}
+
                 </div>
 
 
-                {loading
-                    ? (
+                <form
+                    className="stock-form"
+                    onSubmit={handleSubmit}
+                >
 
-                        <div className="empty-state">
-                            Loading portfolio...
-                        </div>
+                    <div className="ticker-search-field">
 
-                    )
-                    : stocks.length === 0
-                        ? (
+                        <label>
+                            Ticker
 
-                            <div className="empty-state">
-
-                                <h3>
-                                    Your portfolio is empty
-                                </h3>
-
-                                <p>
-                                    Add your first stock
-                                    to start monitoring
-                                    prices.
-                                </p>
-
-                                <button
-                                    type="button"
-                                    className=
-                                        "primary-button"
-
-                                    onClick={
-                                        openCreateForm
+                            <input
+                                required
+                                autoComplete="off"
+                                placeholder=
+                                    "Search MU or Micron"
+                                value={
+                                    form.ticker
+                                }
+                                onFocus={() => {
+                                    if (
+                                        tickerResults.length > 0
+                                    ) {
+                                        setTickerSearchOpen(true);
                                     }
-                                >
-                                    Add first stock
-                                </button>
+                                }}
+                                onChange={
+                                    event => {
+                                        setForm(
+                                            current => ({
+                                                ...current,
+                                                ticker:
+                                                    event.target
+                                                        .value
+                                                        .toUpperCase()
+                                            })
+                                        );
 
+                                        setTickerSearchOpen(true);
+                                    }
+                                }
+                            />
+                        </label>
+
+
+                        {tickerSearching && (
+                            <div className="ticker-search-status">
+                                Searching...
                             </div>
+                        )}
 
-                        )
-                        : (
 
-                            <div className="stock-grid">
+                        {
+                            tickerSearchOpen
+                            &&
+                            tickerResults.length > 0
+                            &&
+                            (
+                                <div className="ticker-search-results">
 
-                                {stocks.map(
-                                    stock => (
+                                    {tickerResults.map(
+                                        result => (
+                                            <button
+                                                key={
+                                                    `${result.ticker}-${result.exchange}`
+                                                }
+                                                type="button"
+                                                className=
+                                                    "ticker-search-result"
+                                                onClick={() =>
+                                                    selectTicker(result)
+                                                }
+                                            >
+                                                <div>
+                                                    <strong>
+                                                        {result.ticker}
+                                                    </strong>
 
-                                        <StockCard
-                                            key={
-                                                stock.id
-                                            }
+                                                    <span>
+                                                        {
+                                                            result.companyName
+                                                        }
+                                                    </span>
+                                                </div>
 
-                                            stock={
-                                                stock
-                                            }
+                                                <small>
+                                                    {result.exchange}
+                                                </small>
+                                            </button>
+                                        )
+                                    )}
 
-                                            onEdit={() =>
-                                                openEditForm(
-                                                    stock
-                                                )
-                                            }
+                                </div>
+                            )
+                        }
 
-                                            onDelete={() =>
-                                                void handleDelete(
-                                                    stock
-                                                )
-                                            }
+                    </div>
 
-                                            onToggleAlert={() =>
-                                                void handleAlertToggle(
-                                                    stock
-                                                )
-                                            }
-                                        />
+
+                    <label>
+                        Company Name
+
+                        <input
+                            required
+                            placeholder=
+                                "Micron Technology, Inc."
+                            value={
+                                form.companyName
+                            }
+                            onChange={
+                                event =>
+                                    setForm(
+                                        current => ({
+                                            ...current,
+                                            companyName:
+                                            event.target.value
+                                        })
                                     )
-                                )}
+                            }
+                        />
+                    </label>
 
-                            </div>
-                        )
-                }
+
+                    <label>
+                        Shares
+
+                        <input
+                            required
+                            min="1"
+                            step="1"
+                            type="number"
+                            value={
+                                form.shares
+                            }
+                            onChange={
+                                event =>
+                                    setForm(
+                                        current => ({
+                                            ...current,
+                                            shares:
+                                            event.target.value
+                                        })
+                                    )
+                            }
+                        />
+                    </label>
+
+
+                    <label>
+                        Buy Price (USD)
+
+                        <input
+                            required
+                            min="0.0001"
+                            step="0.0001"
+                            type="number"
+                            value={
+                                form.buyPrice
+                            }
+                            onChange={
+                                event =>
+                                    setForm(
+                                        current => ({
+                                            ...current,
+                                            buyPrice:
+                                            event.target.value
+                                        })
+                                    )
+                            }
+                        />
+                    </label>
+
+
+                    <label>
+                        Target Price (USD)
+
+                        <input
+                            required
+                            min="0.0001"
+                            step="0.0001"
+                            type="number"
+                            value={
+                                form.targetPrice
+                            }
+                            onChange={
+                                event =>
+                                    setForm(
+                                        current => ({
+                                            ...current,
+                                            targetPrice:
+                                            event.target.value
+                                        })
+                                    )
+                            }
+                        />
+                    </label>
+
+
+                    <label className="notes-field">
+                        Notes
+
+                        <textarea
+                            rows={3}
+                            placeholder=
+                                "Short-term target..."
+                            value={
+                                form.notes
+                            }
+                            onChange={
+                                event =>
+                                    setForm(
+                                        current => ({
+                                            ...current,
+                                            notes:
+                                            event.target.value
+                                        })
+                                    )
+                            }
+                        />
+                    </label>
+
+
+                    <label className="checkbox-label">
+
+                        <input
+                            type="checkbox"
+                            checked={
+                                form.alertEnabled
+                            }
+                            onChange={
+                                event =>
+                                    setForm(
+                                        current => ({
+                                            ...current,
+                                            alertEnabled:
+                                            event.target.checked
+                                        })
+                                    )
+                            }
+                        />
+
+                        Enable price alert
+
+                    </label>
+
+
+                    <button
+                        className="submit-button"
+                        type="submit"
+                        disabled={saving}
+                    >
+                        {saving
+                            ? "Saving..."
+                            : editingStock
+                                ? "Save Changes"
+                                : "Add Stock"}
+                    </button>
+
+                </form>
 
             </section>
 
 
-            {/* ADD / EDIT MODAL */}
-
-            {formOpen && (
-
-                <div
-                    className="modal-backdrop"
-                    onMouseDown={
-                        event => {
-
-                            if (
-                                event.target ===
-                                event.currentTarget
-                            ) {
-                                closeForm();
-                            }
-                        }
-                    }
-                >
-
-                    <section className="stock-modal">
-
-                        <div className="modal-header">
-
-                            <div>
-
-                                <p className="eyebrow">
-                                    {editingStock
-                                        ? "EDIT POSITION"
-                                        : "NEW POSITION"}
-                                </p>
-
-                                <h2>
-                                    {editingStock
-                                        ? "Edit stock"
-                                        : "Add stock"}
-                                </h2>
-
-                            </div>
-
-
-                            <button
-                                type="button"
-                                className="close-button"
-                                onClick={
-                                    closeForm
-                                }
-                            >
-                                ×
-                            </button>
-
-                        </div>
-
-
-                        <form
-                            className="stock-form"
-                            onSubmit={
-                                handleSubmit
-                            }
-                        >
-
-                            <div className="form-grid">
-
-                                <div className="ticker-search-field">
-
-                                    <label>
-                                        Ticker
-
-                                        <input
-                                            required
-                                            autoComplete="off"
-                                            placeholder="Search MU or Micron"
-
-                                            value={
-                                                form.ticker
-                                            }
-
-                                            onFocus={() => {
-
-                                                if (
-                                                    tickerResults.length > 0
-                                                ) {
-
-                                                    setTickerSearchOpen(
-                                                        true
-                                                    );
-                                                }
-                                            }}
-
-                                            onChange={
-                                                event => {
-
-                                                    setForm(
-                                                        current => ({
-                                                            ...current,
-
-                                                            ticker:
-                                                                event
-                                                                    .target
-                                                                    .value
-                                                                    .toUpperCase()
-                                                        })
-                                                    );
-
-                                                    setTickerSearchOpen(
-                                                        true
-                                                    );
-                                                }
-                                            }
-                                        />
-                                    </label>
-
-
-                                    {tickerSearching && (
-
-                                        <div className="ticker-search-status">
-                                            Searching...
-                                        </div>
-                                    )}
-
-
-                                    {
-                                        tickerSearchOpen
-                                        &&
-                                        tickerResults.length > 0
-                                        &&
-                                        (
-
-                                            <div className="ticker-search-results">
-
-                                                {tickerResults.map(
-                                                    result => (
-
-                                                        <button
-                                                            key={
-                                                                `${result.ticker}-${result.exchange}`
-                                                            }
-
-                                                            type="button"
-
-                                                            className="ticker-search-result"
-
-                                                            onClick={() =>
-                                                                selectTicker(
-                                                                    result
-                                                                )
-                                                            }
-                                                        >
-
-                                                            <div>
-
-                                                                <strong>
-                                                                    {result.ticker}
-                                                                </strong>
-
-                                                                <span>
-                                    {
-                                        result
-                                            .companyName
-                                    }
-                                </span>
-
-                                                            </div>
-
-
-                                                            <small>
-                                                                {
-                                                                    result.exchange
-                                                                }
-                                                            </small>
-
-                                                        </button>
-                                                    )
-                                                )}
-
-                                            </div>
-                                        )
-                                    }
-
-                                </div>
-
-
-                                <label>
-                                    Company name
-
-                                    <input
-                                        required
-                                        placeholder=
-                                            "Micron Technology"
-
-                                        value={
-                                            form.companyName
-                                        }
-
-                                        onChange={
-                                            event =>
-                                                setForm(
-                                                    current => ({
-                                                        ...current,
-                                                        companyName:
-                                                        event
-                                                            .target
-                                                            .value
-                                                    })
-                                                )
-                                        }
-                                    />
-                                </label>
-
-
-                                <label>
-                                    Shares
-
-                                    <input
-                                        required
-                                        min="1"
-                                        step="1"
-                                        type="number"
-
-                                        value={
-                                            form.shares
-                                        }
-
-                                        onChange={
-                                            event =>
-                                                setForm(
-                                                    current => ({
-                                                        ...current,
-                                                        shares:
-                                                        event
-                                                            .target
-                                                            .value
-                                                    })
-                                                )
-                                        }
-                                    />
-                                </label>
-
-
-                                <label>
-                                    Buy price (USD)
-
-                                    <input
-                                        required
-                                        min="0.01"
-                                        step="0.01"
-                                        type="number"
-
-                                        value={
-                                            form.buyPrice
-                                        }
-
-                                        onChange={
-                                            event =>
-                                                setForm(
-                                                    current => ({
-                                                        ...current,
-                                                        buyPrice:
-                                                        event
-                                                            .target
-                                                            .value
-                                                    })
-                                                )
-                                        }
-                                    />
-                                </label>
-
-
-                                <label>
-                                    Target price (USD)
-
-                                    <input
-                                        required
-                                        min="0.01"
-                                        step="0.01"
-                                        type="number"
-
-                                        value={
-                                            form.targetPrice
-                                        }
-
-                                        onChange={
-                                            event =>
-                                                setForm(
-                                                    current => ({
-                                                        ...current,
-                                                        targetPrice:
-                                                        event
-                                                            .target
-                                                            .value
-                                                    })
-                                                )
-                                        }
-                                    />
-                                </label>
-
-                            </div>
-
-
-                            <label>
-                                Notes
-
-                                <textarea
-                                    rows={4}
-                                    placeholder=
-                                        "Optional notes..."
-
-                                    value={
-                                        form.notes
-                                    }
-
-                                    onChange={
-                                        event =>
-                                            setForm(
-                                                current => ({
-                                                    ...current,
-                                                    notes:
-                                                    event
-                                                        .target
-                                                        .value
-                                                })
-                                            )
-                                    }
-                                />
-                            </label>
-
-
-                            <label className="checkbox-row">
-
-                                <input
-                                    type="checkbox"
-
-                                    checked={
-                                        form
-                                            .alertEnabled
-                                    }
-
-                                    onChange={
-                                        event =>
-                                            setForm(
-                                                current => ({
-                                                    ...current,
-                                                    alertEnabled:
-                                                    event
-                                                        .target
-                                                        .checked
-                                                })
-                                            )
-                                    }
-                                />
-
-                                Enable target-price alerts
-
-                            </label>
-
-
-                            <div className="modal-actions">
-
-                                <button
-                                    type="button"
-                                    className=
-                                        "secondary-button"
-
-                                    onClick={
-                                        closeForm
-                                    }
-
-                                    disabled={
-                                        saving
-                                    }
-                                >
-                                    Cancel
-                                </button>
-
-
-                                <button
-                                    type="submit"
-                                    className=
-                                        "primary-button"
-
-                                    disabled={
-                                        saving
-                                    }
-                                >
-                                    {saving
-                                        ? "Saving..."
-                                        : editingStock
-                                            ? "Save changes"
-                                            : "Add stock"}
-                                </button>
-
-                            </div>
-
-                        </form>
-
-                    </section>
-
+            {loading && (
+                <div className="empty">
+                    Loading portfolio...
                 </div>
+            )}
+
+
+            {!loading &&
+                stocks.length === 0 && (
+                    <div className="empty">
+                        No stocks are currently
+                        being monitored.
+                    </div>
+                )}
+
+
+            {!loading && (
+                <section className="stock-grid">
+
+                    {stocks.map(
+                        stock => (
+                            <StockCard
+                                key={stock.id}
+                                stock={stock}
+                                onEdit={() =>
+                                    editStock(stock)
+                                }
+                                onDelete={() =>
+                                    void handleDelete(stock)
+                                }
+                                onToggleAlert={() =>
+                                    void handleAlertToggle(stock)
+                                }
+                            />
+                        )
+                    )}
+
+                </section>
             )}
 
         </main>
     );
 }
-
-
-/* =========================
-   COMPONENTS
-   ========================= */
 
 
 interface SummaryCardProps {
@@ -1823,44 +1452,31 @@ function SummaryCard({
                          positive
                      }: SummaryCardProps) {
 
-    let className =
-        "summary-value";
-
+    let className = "";
 
     if (positive === true) {
-        className += " positive";
+        className = "positive";
     }
 
     if (positive === false) {
-        className += " negative";
+        className = "negative";
     }
 
-
     return (
-
-        <article className="summary-card">
-
-            <span>
-                {label}
-            </span>
-
+        <div className="summary-card">
+            <span>{label}</span>
             <strong className={className}>
                 {value}
             </strong>
-
-        </article>
+        </div>
     );
 }
 
 
 interface StockCardProps {
-
     stock: DashboardStock;
-
     onEdit: () => void;
-
     onDelete: () => void;
-
     onToggleAlert: () => void;
 }
 
@@ -1875,104 +1491,72 @@ function StockCard({
     const currentPrice =
         stock.currentPrice;
 
-
     const invested =
         Number(stock.buyPrice)
         *
         stock.shares;
 
-
     const currentValue =
         currentPrice !== null
-            ? (
-                currentPrice
-                *
-                stock.shares
-            )
+            ? currentPrice
+            *
+            stock.shares
             : null;
-
 
     const profitLoss =
         currentValue !== null
-            ? currentValue - invested
+            ? currentValue
+            -
+            invested
             : null;
-
 
     const returnPercent =
         profitLoss !== null
         &&
         invested > 0
-
             ? (
             profitLoss /
             invested
         ) * 100
-
             : null;
-
 
     const targetReached =
         currentPrice !== null
         &&
         currentPrice >=
-        Number(
-            stock.targetPrice
-        );
-
+        Number(stock.targetPrice);
 
     return (
-
         <article className="stock-card">
 
-            <div className="stock-card-header">
+            <div className="stock-heading">
 
                 <div>
+                    <h2>
+                        {stock.ticker}
+                    </h2>
 
-                    <div className="ticker-row">
-
-                        <h3>
-                            {stock.ticker}
-                        </h3>
-
-                        {targetReached && (
-
-                            <span className="target-badge">
-                                Target reached
-                            </span>
-                        )}
-
-                    </div>
-
-
-                    <p>
+                    <span>
                         {stock.companyName}
-                    </p>
-
+                    </span>
                 </div>
 
 
-                <div className="stock-actions">
-
-                    <button
-                        type="button"
-                        onClick={onEdit}
-                    >
-                        Edit
-                    </button>
-
-                    <button
-                        type="button"
-                        className=
-                            "danger-button"
-
-                        onClick={
-                            onDelete
-                        }
-                    >
-                        Delete
-                    </button>
-
-                </div>
+                <button
+                    type="button"
+                    className={
+                        stock.alertEnabled
+                            ? "badge active alert-badge-button"
+                            : "badge alert-badge-button"
+                    }
+                    onClick={onToggleAlert}
+                    title=
+                        "Click to enable or disable this stock alert"
+                >
+                    {stock.alertEnabled
+                        ? "Alert On"
+                        : "Alert Off"}
+                </button>
 
             </div>
 
@@ -1985,171 +1569,113 @@ function StockCard({
 
                 <strong>
                     {currentPrice !== null
-                        ? formatMoney(
-                            currentPrice
-                        )
+                        ? `${
+                            currentPrice.toFixed(2)
+                        } ${stock.currency}`
                         : "Unavailable"}
                 </strong>
 
             </div>
 
 
-            <div className="stock-metrics">
+            <div className="stats">
 
-                <Metric
-                    label="Buy price"
-                    value={
-                        formatMoney(
+                <div>
+                    <span>Buy price</span>
+                    <strong>
+                        {
                             Number(
                                 stock.buyPrice
-                            )
-                        )
-                    }
-                />
+                            ).toFixed(2)
+                        }
+                    </strong>
+                </div>
 
-
-                <Metric
-                    label="Target"
-                    value={
-                        formatMoney(
+                <div>
+                    <span>Target</span>
+                    <strong>
+                        {
                             Number(
                                 stock.targetPrice
+                            ).toFixed(2)
+                        }
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Shares</span>
+                    <strong>
+                        {stock.shares}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Return</span>
+                    <strong
+                        className={
+                            returnPercent === null
+                                ? ""
+                                : returnPercent >= 0
+                                    ? "positive"
+                                    : "negative"
+                        }
+                    >
+                        {returnPercent !== null
+                            ? formatPercent(
+                                returnPercent
                             )
-                        )
-                    }
-                />
-
-
-                <Metric
-                    label="Shares"
-                    value={
-                        String(
-                            stock.shares
-                        )
-                    }
-                />
-
-
-                <Metric
-                    label="Position value"
-                    value={
-                        currentValue !== null
-                            ? formatMoney(
-                                currentValue
-                            )
-                            : "—"
-                    }
-                />
+                            : "—"}
+                    </strong>
+                </div>
 
             </div>
 
 
-            <div className="stock-return">
-
-                <span>
-                    Return
-                </span>
-
-                <strong
-                    className={
-                        returnPercent === null
-                            ? ""
-                            : returnPercent >= 0
-                                ? "positive"
-                                : "negative"
-                    }
-                >
-                    {returnPercent !== null
-                        ? formatPercent(
-                            returnPercent
-                        )
-                        : "—"}
-                </strong>
-
-            </div>
+            {
+                (
+                    stock.alertTriggered
+                    ||
+                    targetReached
+                )
+                &&
+                (
+                    <div className="triggered">
+                        Target reached
+                    </div>
+                )
+            }
 
 
             {stock.notes && (
-
-                <p className="stock-notes">
+                <p className="notes">
                     {stock.notes}
                 </p>
             )}
 
 
-            <div className="alert-row">
+            <div className="card-actions">
 
-                <div>
+                <button
+                    type="button"
+                    className="edit-button"
+                    onClick={onEdit}
+                >
+                    Edit
+                </button>
 
-                    <strong>
-                        Price alert
-                    </strong>
-
-                    <span>
-                        {stock.alertEnabled
-                            ? "Enabled"
-                            : "Disabled"}
-                    </span>
-
-                </div>
-
-
-                <label className="switch">
-
-                    <input
-                        type="checkbox"
-
-                        checked={
-                            stock.alertEnabled
-                        }
-
-                        onChange={
-                            onToggleAlert
-                        }
-                    />
-
-                    <span className="slider" />
-
-                </label>
+                <button
+                    type="button"
+                    className="delete-button"
+                    onClick={onDelete}
+                >
+                    Delete
+                </button>
 
             </div>
 
         </article>
     );
 }
-
-
-interface MetricProps {
-    label: string;
-    value: string;
-}
-
-
-function Metric({
-                    label,
-                    value
-                }: MetricProps) {
-
-    return (
-
-        <div className="metric">
-
-            <span>
-                {label}
-            </span>
-
-            <strong>
-                {value}
-            </strong>
-
-        </div>
-    );
-}
-
-
-/* =========================
-   HELPERS
-   ========================= */
 
 
 function formatMoney(
@@ -2177,7 +1703,6 @@ function formatSignedMoney(
             Math.abs(value)
         );
 
-
     if (value > 0) {
         return `+${formatted}`;
     }
@@ -2198,7 +1723,6 @@ function formatPercent(
         value > 0
             ? "+"
             : "";
-
 
     return `${prefix}${value.toFixed(2)}%`;
 }
@@ -2222,7 +1746,6 @@ function urlBase64ToArrayBuffer(
             4
         );
 
-
     const base64 =
         (
             base64String
@@ -2238,24 +1761,20 @@ function urlBase64ToArrayBuffer(
                 "/"
             );
 
-
     const rawData =
         window.atob(
             base64
         );
-
 
     const buffer =
         new ArrayBuffer(
             rawData.length
         );
 
-
     const bytes =
         new Uint8Array(
             buffer
         );
-
 
     for (
         let index = 0;
@@ -2268,7 +1787,6 @@ function urlBase64ToArrayBuffer(
                 index
             );
     }
-
 
     return buffer;
 }
