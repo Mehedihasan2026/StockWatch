@@ -1188,3 +1188,122 @@ button:disabled {
         text-align: center;
     }
 }
+/* =========================
+   TICKER SEARCH
+   ========================= */
+
+.ticker-search-field {
+    position: relative;
+}
+
+
+.ticker-search-results {
+    position: absolute;
+
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+
+    z-index: 50;
+
+    overflow: hidden;
+
+    border:
+            1px solid #30363d;
+
+    border-radius: 10px;
+
+    background: #161b22;
+
+    box-shadow:
+            0 14px 35px
+            rgba(0, 0, 0, 0.35);
+}
+
+
+.ticker-search-result {
+    width: 100%;
+
+    display: flex;
+
+    justify-content:
+            space-between;
+
+    align-items: center;
+
+    gap: 16px;
+
+    padding: 12px 14px;
+
+    border: 0;
+
+    border-bottom:
+            1px solid #30363d;
+
+    background: transparent;
+
+    color: #f0f6fc;
+
+    text-align: left;
+}
+
+
+.ticker-search-result:last-child {
+    border-bottom: 0;
+}
+
+
+.ticker-search-result:hover {
+    background: #21262d;
+}
+
+
+.ticker-search-result > div {
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 3px;
+}
+
+
+.ticker-search-result strong {
+    color: #58a6ff;
+
+    font-size: 0.95rem;
+}
+
+
+.ticker-search-result span {
+    overflow: hidden;
+
+    color: #c9d1d9;
+
+    font-size: 0.85rem;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+}
+
+
+.ticker-search-result small {
+    flex-shrink: 0;
+
+    color: #8b949e;
+}
+
+
+.ticker-search-status {
+    position: absolute;
+
+    right: 10px;
+    top: 34px;
+
+    color: #8b949e;
+
+    font-size: 0.75rem;
+
+    pointer-events: none;
+}

@@ -13,13 +13,19 @@ public class MarketController {
 
     private final MarketScreenerService marketScreenerService;
 
+    private final MarketSearchService marketSearchService;
+
 
     public MarketController(
-            MarketScreenerService marketScreenerService
+            MarketScreenerService marketScreenerService,
+            MarketSearchService marketSearchService
     ) {
 
         this.marketScreenerService =
                 marketScreenerService;
+
+        this.marketSearchService =
+                marketSearchService;
     }
 
 
@@ -35,6 +41,27 @@ public class MarketController {
 
         return marketScreenerService
                 .getTopGainers(
+                        limit
+                );
+    }
+
+
+    @GetMapping("/search")
+    public List<StockSearchResponse>
+    searchStocks(
+
+            @RequestParam
+            String q,
+
+            @RequestParam(
+                    defaultValue = "6"
+            )
+            int limit
+    ) {
+
+        return marketSearchService
+                .search(
+                        q,
                         limit
                 );
     }
